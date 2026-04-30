@@ -3,7 +3,7 @@ A Python-based tool for reprojecting RGB Orthomosaics, Multispectral Orthomosaic
 
 ### Why Use this Tool?
 
-Standard mathematical transformations (Helmert) can be off by up to 5 meters in the UK. This tool uses the OSGB grid shifts for sub-centimeter-level precision.
+Standard mathematical transformations (Helmert) can be off by up to 5 meters in the UK. This tool uses the OSGB grid shifts for millimeter-level accuracy.
 
 ### Setup Instructions
 
