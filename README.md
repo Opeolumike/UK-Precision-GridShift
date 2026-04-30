@@ -11,7 +11,7 @@ If you are running this script locally on your own machine:
 
 **1. Delete Cell 1 and Cell 2**
 
-Cell 1 and Cell 2 are for those who prefer to use google Colab
+Cell 1 and Cell 2 are for those who prefer to use Google Colab
 
 **2. Install Dependencies**
 
@@ -35,5 +35,6 @@ BASE_DIR = "/content/drive/MyDrive/Folder_Name/"
 ```
 
 **2. Data Placement**
-Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder and your input files are placed directly into the same directory (the Drive folder) as the scripts. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
-Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder and your input files are placed directly into the same directory (the Drive folder) as the scripts. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+
+Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder and your input files are placed directly in the same directory as the scripts (the Drive folder). For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+
