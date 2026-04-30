@@ -26,7 +26,7 @@ Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder an
 
 #### Option B: Google Colab
 
-**Update the file path in the script to point to the Drive folder** 
+**1. Update the file path in the script to point to the Drive folder** 
 
 Change "Folder_Name" to your exact Google Drive folder name
 
