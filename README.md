@@ -21,7 +21,7 @@ Cell 1 and Cell 2 are for those who prefer to use Google Colab
 
 Ensure you have the required packages installed in your Conda environment. It is also recommended to install these using Conda to prevent conflicts with other packages:
 ```bash
-conda install -c conda-forge pyproj laspy numpy
+conda install -c conda-forge pyproj laspy numpy rasterio
 ```
 **3. Data Placement**
 
