@@ -1,6 +1,10 @@
 # UK-Precision-GridShift
 A Python-based tool for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, and LAS Point Clouds from WGS84 UTM 30N to British National Grid/Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
 
+### Why Use this Tool?
+
+Standard mathematical transformations (Helmert) can be off by up to 5 meters in the UK. This tool uses the OSGB grid shifts for sub-centimeter-level precision.
+
 ### Setup Instructions
 
 Depending on your environment, please follow the specific setup instructions below before running the scripts.
