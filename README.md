@@ -49,8 +49,10 @@ The grid files used in this tool were retrieved from the official sources listed
 *   **OSTN15 (Horizontal):** [Download Here](https://www.ordnancesurvey.co.uk/documents/resources/OSTN15-NTv2.zip) 
 *   **OSGM15 (Vertical):** [Download Here](https://cdn.proj.org/uk_os_OSGM15_GB.tif)
 
-> **Note on Integration:** The scripts in this repository are configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
->
-> **To make the code work, you can either:**
-> 1.  **Rename the files:** Rename `OSTN15_NTv2_ETRStoOSGB.gsb` to `ostn15_etrs_to_osgb.gsb` and `uk_os_OSGM15_GB.tif` to `uk_os_osgm15_gb.tif`.
-> 2.  **Edit the script:** Keep the original filenames and simply update the filename variables at the start of the Python scripts to match the raw filenames exactly.
+
+**Note on Integration:** The scripts in this repository are configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
+
+**To make the code work, you can either:**
+1.  **Rename the files:** Rename `OSTN15_NTv2_ETRStoOSGB.gsb` to `ostn15_etrs_to_osgb.gsb` and `uk_os_OSGM15_GB.tif` to `uk_os_osgm15_gb.tif`.
+
+2.  **Edit the script:** Keep the original filenames and simply update the filename in the scripts to match the raw filenames exactly.
