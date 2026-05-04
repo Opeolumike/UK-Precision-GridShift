@@ -5,6 +5,9 @@ A Python-based tool for reprojecting RGB Orthomosaics, Multispectral Orthomosaic
 
 Standard mathematical transformations (Helmert) can be off by up to 5 metres in the UK. This tool uses the OSGB grid shifts for millimetre-level accuracy.
 
+### Please note 
+This tool is designed specifically for England, Scotland, and Wales) using BNG (EPSG:27700) and ODN (Newlyn) authoritative OSGB transformation grids.
+
 ### Setup Instructions
 
 Depending on your environment, please follow the specific setup instructions below before running the scripts.
