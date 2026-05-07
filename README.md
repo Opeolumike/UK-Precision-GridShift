@@ -1,4 +1,4 @@
-# UK Precision Grid Shift
+# UK Precision GridShift
 A Python-based tool for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, and LAS Point Clouds from WGS84 UTM Zone 30N to British National Grid/Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
 
 ### Why Use this Tool?
