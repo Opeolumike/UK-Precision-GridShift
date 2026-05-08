@@ -47,7 +47,9 @@ Ensure the Transformation_Grids folder and your input files are placed directly 
 
 #### Option B: Google Colab
 
-**1. Mount your Google Drive Open the `Control_Panel.ipynb` in Colab and run the standard drive mounting cell:** 
+**1. Mount your Google Drive**
+
+Create a new Colab notebook and run the standard drive mounting cell:** 
 
 ```bash
 from google.colab import drive
