@@ -216,5 +216,3 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-# Ignore all heavy raster datasets
-*.tif
