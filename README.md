@@ -10,52 +10,91 @@ This tool is designed specifically for England, Scotland, and Wales.
 
 ### Setup Instructions
 
-Depending on your environment, please follow the specific setup instructions below before running the scripts.
+Depending on your environment, please follow the specific setup instructions below before running the tool.
 
-#### Option A: Local Jupyter Notebook
+#### Option A: Local Machine (Using Conda)
 
-If you are running this script locally on your own machine:
+> **⚠️ Hardware Note:** Applying OSTN15/OSGM15 shifts to high-resolution orthomosaics, DSMs, and Point Clouds is memory-intensive. Ensure your machine has at least 16GB of available RAM. For systems with lower specifications, **Option B: Google Colab** is recommended.
 
-**1. Delete Cell 1 and Cell 2**
+**1. Create a Conda environment if you do not have one yet**
 
-Cell 1 and Cell 2 are for those who prefer to use Google Colab
+```bash
+conda create -n gridshift python=3.12
+```
 
-**2. Install Dependencies**
+**2. Activate the environment**
+```bash
+conda activate gridshift
+```
+
+**3. Install Dependencies**
 
 Ensure you have the required packages installed in your Conda environment. It is also recommended to install these using Conda to prevent conflicts with other packages:
 ```bash
 conda install -c conda-forge pyproj laspy numpy rasterio
 ```
-**3. Data Placement**
+**4. Data Placement**
 
-Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder and your input files are placed directly into the same directory as the scripts. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+Ensure the Transformation_Grids folder and your input files are placed directly into the same directory as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the .las files in the same directory.
 
 
 #### Option B: Google Colab
 
-**1. Update the file path in the script to point to the Drive folder** 
-
-Change "Folder_Name" to your exact Google Drive folder name
+**1. Mount your Google Drive Open the `Control_Panel.ipynb` in Colab and run the standard drive mounting cell:** 
 
 ```bash
-BASE_DIR = "/content/drive/MyDrive/Folder_Name/"
+from google.colab import drive
+drive.mount('/content/drive')
 ```
 
-**2. Data Placement**
+**2. Install Dependencies and Change Directory** 
 
-Unzip the "Transformation_Grids" file. Ensure the Transformation_Grids folder and your input files are placed directly in the same directory as the scripts (the Drive folder). For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+```
+%pip install pyproj rasterio laspy -q
+%cd /content/drive/MyDrive/Folder_Name/  
+```
+Change "Folder_Name" to your exact Google Drive folder you kept `gridshift_cli.py` , your input files and the Transformation_Grids folder.
+
+**3. Data Placement**
+
+Ensure the Transformation_Grids folder and your input files are placed directly in the same directory (the Drive folder) as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+
+#### How to Use (CLI Commands)
+
+Whether you are in a local terminal or using Colab, the execution commands are exactly the same.
+
+**RGB Orthomosaic**
+```
+python gridshift_cli.py --type ortho --input "RGB_Ortho.tif" --output "RGB_Ortho_BNG.tif" --grids "Transformation_Grids"
+```
+
+**Multispectral Orthomosaic**
+```
+python gridshift_cli.py --type multi --input "Multispectral_Ortho.tif" --output "Multispectral_Ortho_BNG.tif" --grids "Transformation_Grids"
+```
+
+**Digital Surface Model (DSM)**
+```
+python gridshift_cli.py --type dsm --input "DSM.tif" --output "DSM_BNG_ODN.tif" --grids "Transformation_Grids"
+```
+
+**Point Clouds (LAS Directory)**
+```
+python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG" --grids "Transformation_Grids"
+```
+> **Note:** You can change `input ""` and `output ""` to whatever your input files/folders are named.
 
 ## How to Access the Grid Files Directly from the Source 
 
-The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` zip file, you have two ways to ensure the scripts run correctly:
+The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool run correctly:
 
 *   **OSTN15 (Horizontal):** [Download Here](https://www.ordnancesurvey.co.uk/documents/resources/OSTN15-NTv2.zip) 
 *   **OSGM15 (Vertical):** [Download Here](https://cdn.proj.org/uk_os_OSGM15_GB.tif)
 
 
-**Note on Integration:** The scripts in this repository are configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
+**Note on Integration:** The tool is configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
 
-**To make the code work, you can either:**
+**To make the tool work, you can either:**
 1.  **Rename the files:** Rename `OSTN15_NTv2_ETRStoOSGB.gsb` to `ostn15_etrs_to_osgb.gsb` and `uk_os_OSGM15_GB.tif` to `uk_os_osgm15_gb.tif`.
 
-2.  **Edit the script:** Keep the original filenames and simply update the filename in the scripts to match the raw filenames exactly.
+2.  **Edit `gridshift_cli.py`:** Keep the original filenames and simply update the filename in `gridshift_cli.py` to match the raw filenames exactly.
