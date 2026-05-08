@@ -90,9 +90,9 @@ python gridshift_cli.py --type dsm --input "DSM.tif" --output "DSM_BNG_ODN.tif" 
 python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG" --grids "Transformation_Grids"
 ```
 > **Note:** You can change `input ""` and `output ""` to whatever your input files/folders are named.
+> **Colab Users:** Add `!`before `python` i.e `!python`
 
 ## How to Access the Grid Files Directly from the Source 
-
 The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool run correctly:
 
 *   **OSTN15 (Horizontal):** [Download Here](https://www.ordnancesurvey.co.uk/documents/resources/OSTN15-NTv2.zip) 
