@@ -1,23 +1,53 @@
+# ==========================================
 # 1. Default behavior
+# ==========================================
 * text=auto
 
+# ==========================================
 # 2. Scripts and Notebooks
+# ==========================================
 *.ipynb text eol=lf
 *.py text eol=lf
 *.r text eol=lf
 *.R text eol=lf
 
+# ==========================================
 # 3. Data and GIS text files 
+# ==========================================
 *.csv text eol=lf
 *.json text eol=lf
 *.geojson text eol=lf
 *.kml text eol=lf
 
+# ==========================================
 # 4. Documentation and Environments
+# ==========================================
 *.md text eol=lf
 *.txt text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
 
+# ==========================================
 # 5. Windows-specific batch files
+# ==========================================
 *.bat text eol=crlf
+
+# ==========================================
+# 6. Geospatial Binary & Grid Files
+# ==========================================
+# Prevents Git from corrupting massive spatial files 
+# or trying to read transformation grids as text.
+*.tif binary
+*.las binary
+*.laz binary
+*.gsb binary
+*.tfw binary
+
+# ==========================================
+# 7. Standard Binaries and Python Bytecode
+# ==========================================
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pyc binary
+*.pyd binary
