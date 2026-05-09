@@ -62,7 +62,7 @@ drive.mount('/content/drive')
 %pip install pyproj rasterio laspy -q
 %cd /content/drive/MyDrive/Folder_Name/  
 ```
-Change "Folder_Name" to your exact Google Drive folder you kept `gridshift_cli.py` , your input files and the Transformation_Grids folder.
+Change "Folder_Name" to the exact Google Drive folder you kept `gridshift_cli.py` , your input files and the Transformation_Grids folder.
 
 **3. Data Placement**
 
