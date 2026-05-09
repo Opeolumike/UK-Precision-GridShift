@@ -47,7 +47,9 @@ Ensure the Transformation_Grids folder and your input files are placed directly 
 
 #### Option B: Google Colab
 
-**1. Mount your Google Drive Open the `Control_Panel.ipynb` in Colab and run the standard drive mounting cell:** 
+**1. Mount your Google Drive**
+
+Create a new Colab notebook and run the standard drive mounting cell:
 
 ```bash
 from google.colab import drive
@@ -68,7 +70,7 @@ Ensure the Transformation_Grids folder and your input files are placed directly 
 
 #### How to Use (CLI Commands)
 
-Whether you are in a local terminal or using Colab, the execution commands are exactly the same.
+Whether you are in a local terminal or using Colab, the execution commands are almost the same.
 
 **RGB Orthomosaic**
 ```
@@ -89,7 +91,7 @@ python gridshift_cli.py --type dsm --input "DSM.tif" --output "DSM_BNG_ODN.tif" 
 ```
 python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG" --grids "Transformation_Grids"
 ```
-> **Note:** You can change `input ""` and `output ""` to whatever your input files/folders are named.
+> **Note:** You can change `input ""` and `output ""` to whatever your input file/folder is named and your preferred output file/folder name.
 
 > **Colab Users:** Add `!`before `python` i.e `!python`.
 
