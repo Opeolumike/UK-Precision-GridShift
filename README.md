@@ -19,7 +19,7 @@ This tool is designed specifically for England, Scotland, and Wales.
 
 Depending on your environment, please follow the specific setup instructions below before running the tool.
 
-#### Option A: Local Machine (Using Conda)
+#### Option A: Local Machine (Conda Recommended)
 
 > **⚠️ Hardware Note:** Applying OSTN15/OSGM15 shifts to high-resolution orthomosaics, DSMs, and Point Clouds is memory-intensive. Ensure your machine has at least 16GB of available RAM. For systems with lower specifications, **Option B: Google Colab** is recommended.
 
@@ -96,7 +96,7 @@ python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_
 > **Colab Users:** Add `!`before `python` i.e `!python`.
 
 ## How to Access the Grid Files Directly from the Source 
-The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool run correctly:
+The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool runs correctly:
 
 *   **OSTN15 (Horizontal):** [Download Here](https://www.ordnancesurvey.co.uk/documents/resources/OSTN15-NTv2.zip) 
 *   **OSGM15 (Vertical):** [Download Here](https://cdn.proj.org/uk_os_OSGM15_GB.tif)
