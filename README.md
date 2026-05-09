@@ -42,7 +42,7 @@ conda install -c conda-forge pyproj laspy numpy rasterio
 ```
 **4. Data Placement**
 
-Ensure the Transformation_Grids folder and your input files are placed directly into the same directory as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the .las files in the same directory.
+Ensure the Transformation_Grids folder and your input files are placed in the same directory as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the .las files in the same directory.
 
 
 #### Option B: Google Colab
@@ -66,7 +66,7 @@ Change "Folder_Name" to the exact Google Drive folder you kept `gridshift_cli.py
 
 **3. Data Placement**
 
-Ensure the Transformation_Grids folder and your input files are placed directly in the same directory (the Drive folder) as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
+Ensure the Transformation_Grids folder and your input files are placed in the same directory (the Drive folder) as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
 
 #### How to Use (CLI Commands)
 
