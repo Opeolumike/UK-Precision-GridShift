@@ -107,8 +107,8 @@ DEFINE reproject_dsm_odn(input, output, grids):
             3. APPLY OSGM15 Geoid Undulation to get ODN Height         (+inv +proj=vgridshift)
 
     STEP 3: Planimetric Warp (The X/Y Shift)
-        OPEN input DSM
-        WARP to BNG using OSTN15 (Rasterio handles the precise footprint)
+        OPEN input WGS84 UTM Zone 30N DSM
+        WARP from WGS84 UTM Zone 30N to BNG using OSTN15 (Rasterio handles the precise footprint)
         ENFORCE Bilinear resampling (Elevation is continuous; bilinear prevents terracing).
         SAVE to output.
 
