@@ -73,17 +73,17 @@ To calculate accurate Ordnance Datum Newlyn (ODN) elevations from raw drone GPS 
 
 The universal geodetic equation is:
 
-$$h = H + N$$
+h = H + N
 
 To solve for the true ground height (H), the algebra requires subtraction:
 
-$$H = h - N$$
+H = h - N
 
 ### Default Behaviour of PROJ Vertical Grid Transformations and The +inv Solution
 
 By default, the PROJ `+vgridshift` command adds the grid value:
 
-$$Output = h + N$$
+Output = h + N
 
 This would produce an incorrect result for the intended orthometric height conversion and produce substantial vertical offsets (typically tens of metres across Great Britain). To force the software to calculate `H = h - N`, we must pass the `+inv` (inverse) flag.
 
