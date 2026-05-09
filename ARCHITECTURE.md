@@ -49,12 +49,12 @@ DEFINE reproject_2D_raster(input, output, grids):
         SET Grid = Append OSTN15 horizontal shift to Base
 
     STEP 4: Raster Warping
-        OPEN input WGS84 raster
+        OPEN input WGS84 UTM Zone 30N raster
         CALCULATE the new bounding box and resolution for BNG
         CREATE an empty destination raster with these new dimensions
 
         FOR EACH spectral band in the raster:
-            WARP pixels from WGS84 to BNG using the OSTN15 pipeline
+            WARP pixels from WGS84 UTM Zone 30N to BNG using the OSTN15 pipeline
             ENFORCE Nearest Neighbour resampling to preserve raw spectral data
 
     STEP 5: SAVE and CLOSE.
