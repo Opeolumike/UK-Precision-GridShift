@@ -1,7 +1,8 @@
 # Architecture and Geodetic Logic Document for UK Precision GridShift
 
 **Prepared By:** Michael Opeoluwa
-**Date:** April 2026
+
+**Date:** May 2026
 
 **Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the tool, specifically defending the pipeline architecture against common PROJ library misconceptions.
 
