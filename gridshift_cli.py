@@ -23,7 +23,7 @@ import laspy
 # ==============================================================================
 ## Define the function
 def reproject_multi_bng(input_path, output_path, grid_folder):
-    print("Initializing Multispectral BNG Reprojection...")
+    print("Initialising Multispectral Orthomosaic BNG Reprojection...")
      
     # Tell PyProj where to find custom grids
     pyproj.datadir.append_data_dir(grid_folder)
@@ -77,7 +77,7 @@ def reproject_multi_bng(input_path, output_path, grid_folder):
 # ==============================================================================
 ## Define the function
 def reproject_ortho_rgb(input_path, output_path, grid_folder):
-    print("Initializing RGB Orthomosaic BNG Reprojection...")
+    print("Initialising RGB Orthomosaic BNG Reprojection...")
     
     # Tell PyProj where the grids are safely stored
     pyproj.datadir.append_data_dir(grid_folder)
@@ -128,11 +128,11 @@ def reproject_ortho_rgb(input_path, output_path, grid_folder):
     print(f"✅ Success: {output_path}")
 
 # ==============================================================================
-# 3. RGB DSM (WITH OSGM15 VERTICAL SHIFT)
+# 3. DIGITAL SURFACE MODEL (WITH OSGM15 VERTICAL SHIFT)
 # ==============================================================================
 ## Define the function
 def reproject_dsm_odn(input_path, output_path, grid_folder):
-    print("Initializing DSM BNG/ODN Reprojection...")
+    print("Initialising DSM BNG/ODN Reprojection...")
     
     # PyProj Setup (For the Z-Shift)
     pyproj.datadir.append_data_dir(grid_folder)
@@ -230,7 +230,7 @@ def reproject_dsm_odn(input_path, output_path, grid_folder):
 # ==============================================================================
 ## Define the function
 def reproject_point_cloud_bng_odn(input_folder, output_folder, grid_folder):
-    print("Initializing Point Cloud BNG/ODN Reprojection...")
+    print("Initialising Point Cloud BNG/ODN Reprojection...")
     # Tell PyProj where to find custom grids
     pyproj.datadir.append_data_dir(grid_folder)
 
@@ -331,7 +331,7 @@ def reproject_point_cloud_bng_odn(input_folder, output_folder, grid_folder):
 # ==============================================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="UK Precision GridShift - High-precision spatial data transformation to OSGB36/ODN.",
+        description="UK Precision GridShift - High-precision UAV data transformation to BNG/ODN.",
         formatter_class=argparse.RawTextHelpFormatter
     )
 
