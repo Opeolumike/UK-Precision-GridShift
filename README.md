@@ -12,8 +12,7 @@ A CLI-based Python tool for reprojecting RGB Orthomosaics, Multispectral Orthomo
 
 Standard mathematical transformations (Helmert) can be off by up to 5 metres in the UK. This tool uses the OSTN15/OSGM15 grid shifts to preserve centimetre-level accuracy, provided the input datasets are of survey-grade quality.
 
-### Please note 
-This tool is designed specifically for England, Scotland, and Wales.
+> ⚠️ **Please note:** This tool is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
 
 ### Setup Instructions
 
@@ -70,7 +69,7 @@ Ensure the Transformation_Grids folder and your input files are placed in the sa
 
 #### How to Use (CLI Commands)
 
-Whether you are in a local terminal or using Colab, the execution commands are almost the same.
+Whether you are in a local terminal or using Colab, the execution commands are identical — Colab users simply add `!` before python, i.e `!python`.
 
 **RGB Orthomosaic**
 ```
@@ -92,8 +91,6 @@ python gridshift_cli.py --type dsm --input "DSM.tif" --output "DSM_BNG_ODN.tif" 
 python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG" --grids "Transformation_Grids"
 ```
 > **Note:** You can change `input ""` and `output ""` to whatever your input file/folder is named and your preferred output file/folder name.
-
-> **Colab Users:** Add `!`before `python` i.e `!python`.
 
 ## How to Access the Grid Files Directly from the Source 
 The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool runs correctly:
