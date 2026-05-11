@@ -71,7 +71,7 @@ Ensure the Transformation_Grids folder and your input files are placed in the sa
 
 #### How to Use (CLI Commands)
 
-Whether you are in a local terminal or using Colab, the execution commands are identical — Colab users simply add `!` before python, i.e `!python`.
+Whether you are in a local terminal or using Colab, the execution commands are identical. Colab users simply add `!` before python, i.e `!python`.
 
 **RGB Orthomosaic**
 ```
