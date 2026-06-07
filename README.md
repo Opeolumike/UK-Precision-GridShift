@@ -4,11 +4,10 @@ A CLI-based Python tool for reprojecting RGB Orthomosaics, Multispectral Orthomo
 [Watch Demo Here](https://michaelopeoluwa.com/portfolio/uk-precision-gridshift-ostn15-osgm15-transformation/)
   
 ### Features
-* Reprojects orthomosaics, DSMs, DTMs, and LAS point clouds from WGS84 UTM Zone 30N to the British National Grid
-* Applies OSTN15 horizontal and OSGM15 vertical transformations
-* Supports RGB orthomosaics, multispectral orthomosaics, DSMs, DTMs, and LAS datasets
-* CLI-based for reproducible batch processing
-* Compatible with local Conda environments and Google Colab
+* Reprojects RGB orthomosaics, multispectral orthomosaics, DSMs, DTMs, and LAS point clouds from WGS84 UTM Zone 30N to the British National Grid.
+* Applies OSTN15 horizontal and OSGM15 vertical transformations.
+* CLI-based for reproducible batch processing.
+* Compatible with local Conda environments and Google Colab.
 
 ### Why Use this Tool?
 
@@ -83,9 +82,9 @@ python gridshift_cli.py --type ortho --input "RGB_Ortho.tif" --output "RGB_Ortho
 python gridshift_cli.py --type multi --input "Multispectral_Ortho.tif" --output "Multispectral_Ortho_BNG.tif" --grids "Transformation_Grids"
 ```
 
-**Digital Surface Model (DSM) and Digital Terrain Model (DSM)**
+**Digital Surface Model (DSM) and Digital Terrain Model (DTM)**
 ```
-python gridshift_cli.py --type dsm --input "DSM_DTM.tif" --output "DSM_DTM_BNG_ODN.tif" --grids "Transformation_Grids"
+python gridshift_cli.py --type dem --input "DSM_DTM.tif" --output "DSM_DTM_BNG_ODN.tif" --grids "Transformation_Grids"
 ```
 
 **Point Clouds (LAS Directory)**

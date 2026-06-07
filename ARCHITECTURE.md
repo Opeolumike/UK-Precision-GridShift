@@ -19,7 +19,7 @@ START CLI ROUTING
     MATCH Data Type:
         IF 'multi' -> Route to Multispectral Function
         IF 'ortho' -> Route to RGB Function
-        IF 'dsm'   -> Route to DSM Function
+        IF 'dem'   -> Route to DSM/DTM Function
         IF 'las'   -> Route to Point Cloud Function
 
     CATCH Errors:
@@ -62,7 +62,7 @@ DEFINE reproject_2D_raster(input, output, grids):
 
 ---
 
-## Part 3: The Raster Elevation Transformation (DSM) & Geodetic Defense
+## Part 3: The Raster Elevation Transformation (DSM AND DTM) & Geodetic Defense
 
 ### The Mathematics behind Vertical Transformation
 
@@ -95,7 +95,7 @@ If we warp the X/Y coordinates into BNG, and then run a vertical PROJ pipeline t
 **The Solution:** We separate the operations. We let Rasterio handle the planimetric X/Y warp. Then, we build a temporary PROJ pipeline that runs in reverse (`+inv`) solely to look up the correct geoid value, calculate the new height, and deliberately throw away the temporary X/Y data to protect the Rasterio footprint.
 
 ```
-DEFINE reproject_dsm_odn(input, output, grids):
+DEFINE reproject_dem_odn(input, output, grids):
 
     STEP 1: Validate both OSTN15 (Horizontal) and OSGM15 (Vertical) grid files.
             IF either is missing, aggregate the errors and HALT.
@@ -107,7 +107,7 @@ DEFINE reproject_dsm_odn(input, output, grids):
             3. APPLY OSGM15 Geoid Undulation to get ODN Height         (+inv +proj=vgridshift)
 
     STEP 3: Planimetric Warp (The X/Y Shift)
-        OPEN input WGS84 UTM Zone 30N DSM
+        OPEN input WGS84 UTM Zone 30N DSM/DTM
         WARP from WGS84 UTM Zone 30N to BNG using OSTN15 (Rasterio handles the precise footprint)
         ENFORCE Bilinear resampling (Elevation is continuous; bilinear prevents terracing).
         SAVE to output.

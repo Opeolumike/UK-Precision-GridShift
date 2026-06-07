@@ -128,11 +128,11 @@ def reproject_ortho_rgb(input_path, output_path, grid_folder):
     print(f"✅ Success: {output_path}")
 
 # ==============================================================================
-# 3. DIGITAL SURFACE MODEL (WITH OSGM15 VERTICAL SHIFT)
+# 3. DIGITAL SURFACE MODEL AND DIGITAL SURFACE MODEL (WITH OSGM15 VERTICAL SHIFT)
 # ==============================================================================
 ## Define the function
-def reproject_dsm_odn(input_path, output_path, grid_folder):
-    print("Initialising DSM BNG/ODN Reprojection...")
+def reproject_dem_odn(input_path, output_path, grid_folder):
+    print("Initialising BNG/ODN Reprojection...")
     
     # PyProj Setup (For the Z-Shift)
     pyproj.datadir.append_data_dir(grid_folder)
@@ -338,11 +338,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "-t", "--type", 
         required=True, 
-        choices=['multi', 'ortho', 'dsm', 'las'], 
+        choices=['multi', 'ortho', 'dem', 'las'], 
         help="The type of data being processed:\n"
              "  multi : Multispectral Orthomosaic (.tif)\n"
              "  ortho : RGB Orthomosaic (.tif)\n"
-             "  dsm   : Digital Surface Model (.tif)\n"
+             "  dem   : Digital Elevation Model (.tif)\n"
              "  las   : Point Cloud Directory"
     )
     
@@ -376,8 +376,8 @@ if __name__ == "__main__":
             reproject_multi_bng(args.input, args.output, args.grids)
         elif args.type == 'ortho':
             reproject_ortho_rgb(args.input, args.output, args.grids)
-        elif args.type == 'dsm':
-            reproject_dsm_odn(args.input, args.output, args.grids)
+        elif args.type == 'dem':
+            reproject_dem_odn(args.input, args.output, args.grids)
         elif args.type == 'las':
             reproject_point_cloud_bng_odn(args.input, args.output, args.grids)
     except Exception as e:
