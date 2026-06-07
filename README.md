@@ -4,8 +4,8 @@ A CLI-based Python tool for reprojecting RGB Orthomosaics, Multispectral Orthomo
 [Watch Demo Here](https://michaelopeoluwa.com/portfolio/uk-precision-gridshift-ostn15-osgm15-transformation/)
   
 ### Features
-* Reprojects RGB orthomosaics, multispectral orthomosaics, DSMs, DTMs, and LAS point clouds from WGS84 UTM Zone 30N to the British National Grid.
 * Applies OSTN15 horizontal and OSGM15 vertical transformations.
+* Supports drone photogrammetry and LiDAR-derived datasets.
 * CLI-based for reproducible batch processing.
 * Compatible with local Conda environments and Google Colab.
 
