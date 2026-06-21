@@ -4,11 +4,12 @@ A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomos
 [Watch Demo Here](https://michaelopeoluwa.com/portfolio/uk-precision-gridshift-ostn15-osgm15-transformation/)
 
 ### Features
-* Applies OSTN15 horizontal and OSGM15 vertical transformations.
-* Supports drone photogrammetry and LiDAR-derived datasets.
-* CLI-based for reproducible batch processing, with an interactive GUI mode for double-click use.
-* Built-in QA engine: automated positional accuracy reporting against independent checkpoints (ASPRS Edition 2 RMSE methodology), with a PDF report generated automatically.
-* Compatible with local Conda environments and Google Colab.
+* Strict Geodetic Accuracy: Applies high-precision OSTN15 horizontal and OSGM15 vertical grid transformations.
+* Broad Data Compatibility: Supports UAV photogrammetry and LiDAR-derived datasets, including RGB/Multispectral Orthomosaics (.tif), DSMs/DTMs (.tif), and LAS Point Clouds (.las).
+* Hybrid Deployment: Features a traditional CLI for reproducible scripting, alongside an interactive GUI mode for simple, standalone Windows desktop use.
+* Automated QA Auditing: Built-in computer vision and spatial indexing engine autonomously validates positional accuracy against independent checkpoints.
+* Automated Reporting: Generates 2D and 3D PDF accuracy reports fully compliant with ASPRS Edition 2 RMSE standards.
+* Flexible Environments: Runs locally via a standalone .exe or Conda environment, and supports cloud processing via Google Colab (CLI mode only)
 
 ### Why Use this software?
 
