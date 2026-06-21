@@ -1,23 +1,24 @@
 # UK Precision GridShift
-A CLI-based Python tool for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, DTMs, and LAS Point Clouds from WGS84 UTM Zone 30N to British National Grid/Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
+A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, DTMs, and LAS Point Clouds from WGS84 UTM Zone 30N to British National Grid/Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
 
 [Watch Demo Here](https://michaelopeoluwa.com/portfolio/uk-precision-gridshift-ostn15-osgm15-transformation/)
-  
+
 ### Features
 * Applies OSTN15 horizontal and OSGM15 vertical transformations.
 * Supports drone photogrammetry and LiDAR-derived datasets.
-* CLI-based for reproducible batch processing.
+* CLI-based for reproducible batch processing, with an interactive GUI mode for double-click use.
+* Built-in QA engine: automated positional accuracy reporting against independent checkpoints (ASPRS Edition 2 RMSE methodology), with a PDF report generated automatically.
 * Compatible with local Conda environments and Google Colab.
 
-### Why Use this Tool?
+### Why Use this software?
 
-Standard mathematical transformations (Helmert) can be off by up to 5 metres in the UK. This tool uses the OSTN15/OSGM15 grid shifts to preserve centimetre-level accuracy, provided the input datasets are survey-grade.
+Standard mathematical transformations (Helmert) can be off by up to 5 metres in the UK. This software uses the OSTN15/OSGM15 grid shifts to preserve centimetre-level accuracy, provided the input datasets are survey-grade.
 
-> ⚠️ **Please note:** This tool is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
+> ⚠️ **Please note:** This software is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
 
 ### Setup Instructions
 
-Depending on your environment, please follow the specific setup instructions below before running the tool.
+Depending on your environment, please follow the specific setup instructions below before running the software.
 
 #### Option A: Local Machine (Conda Recommended)
 
@@ -38,7 +39,7 @@ conda activate gridshift
 
 Ensure you have the required packages installed in your Conda environment. It is also recommended to install these using Conda to prevent conflicts with other packages:
 ```bash
-conda install -c conda-forge pyproj laspy numpy rasterio
+conda install -c conda-forge pyproj laspy numpy rasterio opencv fpdf2 pandas scipy
 ```
 **4. Data Placement**
 
@@ -59,7 +60,7 @@ drive.mount('/content/drive')
 **2. Install Dependencies and Change Directory** 
 
 ```
-%pip install pyproj rasterio laspy -q
+%pip install pyproj rasterio laspy opencv-python-headless fpdf2 pandas scipy -q
 %cd /content/drive/MyDrive/Folder_Name/  
 ```
 Change "Folder_Name" to the exact Google Drive folder you kept `gridshift_cli.py` , your input files and the Transformation_Grids folder.
@@ -68,7 +69,37 @@ Change "Folder_Name" to the exact Google Drive folder you kept `gridshift_cli.py
 
 Ensure the Transformation_Grids folder and your input files are placed in the same directory (the Drive folder) as `gridshift_cli.py`. For the point cloud specifically, keep the folder containing the `.las` files in the same directory.
 
-#### How to Use (CLI Commands)
+### Running the software
+
+The software supports two modes: a scriptable **CLI mode** for batch processing, and an interactive **GUI mode** for double-click use with no command-line knowledge required.
+
+#### GUI Mode (No Arguments)
+
+**Running from source (requires Python and the setup above):**
+
+```bash
+python gridshift_cli.py
+```
+
+This opens an interactive console session with numbered menus and native file/folder picker dialogs for selecting your input file, output location, grids folder, and optional QA checkpoint CSV.
+
+**Using the pre-built `.exe` (no Python or setup required):**
+
+Download `UK_Precision_Gridshift_EXE` .zip file. **Unzip it first** — running the `.exe` from inside the zip archive directly (without extracting) will fail, since it needs to read the `Transformation_Grids` folder sitting alongside it on disk.
+
+After unzipping, you'll have:
+
+```
+UK_Precision_Gridshift_EXE/
+├── UK_Precision_GridShift.exe
+└── Transformation_Grids/
+    ├── ostn15_etrs_to_osgb.gsb
+    └── uk_os_osgm15_gb.tif
+```
+
+Place your input files — your orthomosaic/DSM/DTM `.tif`, your LAS folder, and your QA CSV — into this same `UK_Precision_Gridshift_EXE` folder, alongside the `.exe` and `Transformation_Grids`. Then double-click `UK_Precision_GridShift.exe` and follow the prompts. The file picker dialogs will default to this folder, making your input files easy to find.
+
+#### CLI Mode (With Arguments)
 
 Whether you are in a local terminal or using Colab, the execution commands are identical. Colab users simply add `!` before python, i.e `!python`.
 
@@ -93,16 +124,57 @@ python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_
 ```
 > **Note:** You can change `input ""` and `output ""` to whatever your input file/folder is named and your preferred output file/folder name.
 
+### Optional: Accuracy QA Reporting
+
+If you have an independent survey CSV containing your Ground Control Points (GCPs) and Checkpoints (CPs), the software can automatically verify the positional accuracy of its output and generate a PDF report.
+
+Add the `--qa-file` flag (CLI mode), or select your CSV when prompted (GUI mode). Replace `"Survey_Control.csv"` below with whatever your own GCP/CP CSV file is actually named:
+
+```
+python gridshift_cli.py --type ortho --input "RGB_Ortho.tif" --output "RGB_Ortho_BNG.tif" --grids "Transformation_Grids" --qa-file "Survey_Control.csv"
+```
+
+For Multispectral, DEM (DSM/DTM), and LAS outputs, also pass `--ortho-reference` with a corresponding RGB orthomosaic, since these data types alone carry no visual contrast for automated target detection:
+
+```
+python gridshift_cli.py --type multi --input "Multispectral_Ortho.tif" --output "Multispectral_Ortho_BNG.tif" --grids "Transformation_Grids" --qa-file "Survey_Control.csv" --ortho-reference "RGB_Ortho_BNG.tif"
+```
+
+```
+python gridshift_cli.py --type dem --input "DSM.tif" --output "DSM_BNG_ODN.tif" --grids "Transformation_Grids" --qa-file "Survey_Control.csv" --ortho-reference "RGB_Ortho_BNG.tif"
+```
+
+> ⚠️ **Important:** `--ortho-reference` must point to your RGB orthomosaic **after** it has already been reprojected to BNG by this software (i.e. the output of a previous `--type ortho` run), not the original WGS84 UTM Zone 30N orthomosaic straight from your photogrammetry software. This applies whether your orthomosaic came from a standalone photogrammetry drone or from the RGB camera bundled with an integrated LiDAR sensor payload. The QA engine compares checkpoint coordinates (in BNG) against pixel locations in the orthomosaic, so the orthomosaic must already be in BNG for that comparison to be meaningful. If you haven't reprojected your RGB orthomosaic yet, do that first (RGB Orthomosaic type, in either CLI or GUI mode), then use that output as your reference.
+
+You'll be guided through:
+1. **Column mapping** — telling the software which columns in your CSV correspond to Point ID, Easting, Northing, Elevation, and Point Type.
+2. **Checkpoint identification** — selecting the exact value (e.g. `CP`) that marks a row as an independent checkpoint, so accuracy is assessed only against points that did not influence the model.
+3. **Target type and size** — for horizontal QA, specifying whether you used checkerboard or painted/marker targets, and their physical size, so the software can automatically locate them in the orthomosaic.
+
+The software will then generate a PDF report (`<filename>_QA_Report_<TYPE>.pdf`) summarising RMSE values, following ASPRS Positional Accuracy Standards Edition 2 RMSE-based evaluation methodology.
+
+For DEMs and LAS point clouds, `--ortho-reference` similarly allows verifying horizontal accuracy alongside the native vertical assessment.
+
+#### Re-running QA Without Re-Transforming
+
+If you're tuning QA parameters (target size, target type) and want to test against an already-reprojected output without repeating the geodetic transformation, add `--qa-only`:
+
+```
+python gridshift_cli.py --type dem --input "DSM.tif" --output "DSM_BNG_ODN.tif" --grids "Transformation_Grids" --qa-file "Survey_Control.csv" --qa-only
+```
+
+This skips reprojection entirely and assumes `--output` already points to a previously-generated, correctly transformed file, going straight to QA. Useful for quickly iterating on detection settings without re-paying the processing cost each time, especially on large rasters or point clouds.
+
 ## How to Access the Grid Files Directly from the Source 
-The grid files used in this tool were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the tool runs correctly:
+The grid files used in this software were retrieved from the official sources listed below. If you choose to download them independently instead of using the pre-configured `Transformation_Grids` files, you have two ways to ensure the software runs correctly:
 
 *   **OSTN15 (Horizontal):** [Download Here](https://www.ordnancesurvey.co.uk/documents/resources/OSTN15-NTv2.zip) 
 *   **OSGM15 (Vertical):** [Download Here](https://cdn.proj.org/uk_os_OSGM15_GB.tif)
 
 
-**Note on Integration:** The tool is configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
+**Note on Integration:** The software is configured to look for lowercase filenames (`ostn15_etrs_to_osgb.gsb` and `uk_os_osgm15_gb.tif`). If you download the files directly, note that the OSTN15 zip contains several files. The specific one you need is **`OSTN15_NTv2_ETRStoOSGB.gsb`**.
 
-**To make the tool work, you can either:**
+**To make the software work, you can either:**
 1.  **Rename the files:** Rename `OSTN15_NTv2_ETRStoOSGB.gsb` to `ostn15_etrs_to_osgb.gsb` and `uk_os_OSGM15_GB.tif` to `uk_os_osgm15_gb.tif`.
 
 2.  **Edit `gridshift_cli.py`:** Keep the original filenames and simply update the filename in `gridshift_cli.py` to match the raw filenames exactly.

@@ -2,15 +2,15 @@
 
 **Prepared By:** Michael Opeoluwa
 
-**Date:** May 2026
+**Last Updated:** May 2026
 
-**Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the tool, specifically defending the pipeline architecture against common PROJ library misconceptions.
+**Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the software, specifically defending the pipeline architecture against common PROJ library misconceptions.
 
 ---
 
 ## Part 1: System Initialisation and Failsafes
 
-**Logic:** Before any pixels or points are moved, the tool must verify the environment. Geodetic transformations fail silently if grid files are missing, falling back to lower-accuracy transformation methods. This tool enforces strict validation up front.
+**Logic:** Before any pixels or points are moved, the software must verify the environment. Geodetic transformations fail silently if grid files are missing, falling back to lower-accuracy transformation methods. This software enforces strict validation up front.
 
 ```
 START CLI ROUTING
@@ -180,4 +180,143 @@ It is important to note that:
   - Sensor calibration
   - Photogrammetric processing quality
 
-Therefore, the tool's outputs should be interpreted within the broader survey accuracy standards and photogrammetric processing quality.
+Therefore, the software's outputs should be interpreted within the broader survey accuracy standards and photogrammetric processing quality.
+
+---
+
+## Part 6: The Quality Assurance (QA) Engine
+
+**Logic:** The geodetic transformation is only half of a defensible survey deliverable. The other half is independent proof that the transformation produced accurate, usable output. The QA engine compares the software's reprojected output against an independent survey CSV of Ground Control Points (GCPs) and Checkpoints (CPs), reporting positional accuracy using RMSE methodology consistent with ASPRS Positional Accuracy Standards, Edition 2.
+
+### Why GCPs and CPs Must Be Separated
+
+GCPs are the control points used by the photogrammetry software during processing to align the model to real-world coordinates. CPs are deliberately held back during processing, specifically so they can independently verify the model's accuracy afterward.
+
+**Crucial Decision:** If the QA engine validated accuracy using GCPs (or a mix of GCPs and CPs), the result would be circular. GCPs are mathematically forced to fit well during processing, since they were used to create the model. This would produce an artificially optimistic accuracy figure rather than a genuine independent assessment.
+
+```
+DEFINE filter_checkpoints(survey_csv, type_column, checkpoint_value):
+
+    STEP 1: Present every column in the CSV to the user, and require them to
+            map: Point ID, Easting, Northing, Elevation, Point Type.
+
+    STEP 2: Show the unique values found in the Point Type column.
+            REQUIRE the user to specify which exact value represents a
+            Checkpoint (e.g. "CP"), rather than assuming a fixed string.
+
+    STEP 3: Filter the CSV to rows matching that exact value.
+            IF no rows match: HALT with a clear error.
+            (We do not silently fall back to validating against all points,
+            since that would reintroduce the circular validation problem.)
+
+    STEP 4: Proceed to accuracy assessment using ONLY this filtered set.
+```
+
+### Vertical Accuracy (Z): KD-Tree Inverse Distance Weighting
+
+**Logic:** For DEM (DSM/DTM) outputs, the true elevation at a checkpoint's exact coordinate can be read directly from the raster via bilinear sampling. For LAS point clouds, there is no continuous surface to sample. Only discrete points scattered irregularly in space. The nearest single point is not necessarily representative, so we instead query the 5 nearest neighbours and weight them by inverse distance.
+
+```
+DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
+
+    STEP 1: Build a KD-Tree spatial index of all X,Y coordinates in the
+            point cloud (enables fast nearest-neighbour lookup over
+            millions of points).
+
+    STEP 2: FOR EACH checkpoint:
+        QUERY the 5 nearest point cloud points within the search radius.
+        IF none found within radius: SKIP this checkpoint.
+
+        CALCULATE weights = 1 / distance for each of the 5 points
+        (closer points influence the result more than farther ones).
+
+        ESTIMATE elevation = weighted average of the 5 points' Z values.
+
+    STEP 3: Compare estimated elevation against the checkpoint's surveyed
+            True_Z to calculate Delta_Z, Mean Bias, and RMSE.
+```
+
+### Horizontal Accuracy (X, Y): Automated Target Detection
+
+**Logic:** For orthomosaics, the true coordinate of each checkpoint can be compared against where that physical target *actually appears* in the processed image. This requires automatically locating the target within a small search window around the checkpoint's surveyed coordinate.
+
+**Crucial Decision — Dynamic Search Window Sizing:** The search window must be sized to the user's actual physical target, not a fixed arbitrary value. A window significantly larger than the target risks including unrelated high-contrast features (gravel, vegetation, shadows) in the detection calculation, pulling the result away from the true target location. The user is asked for their target's (Checkerboard) physical size, and the search radius is derived from it directly:
+
+```
+search_radius = (physical_target_size / 2) + placement_tolerance_margin
+```
+
+**Crucial Decision — Corner Detection via Centroid, Not Single Maximum:** For checkerboard targets, Harris corner detection responds strongly to every internal corner of the board, not just its centre. Taking the single strongest corner response risks landing on any one corner of the board (anywhere from the centre to an edge). This introduces a positional bias on the order of the board's own physical size.
+
+```
+DEFINE locate_checkerboard_target(image_window):
+
+    STEP 1: Run Harris corner detection across the cropped search window.
+
+    STEP 2: Threshold the result, keeping every pixel scoring above 10% of
+            the maximum corner response in this window (not just the single
+            strongest pixel).
+
+    STEP 3: CALCULATE the centroid (mean X, mean Y) of all pixels that
+            passed the threshold.
+
+    This centroid converges toward the board's true geometric centre,
+    since the board's corners are arranged symmetrically around it —
+    whereas any single corner is not.
+```
+
+For painted or marker-style targets (dots, crosses, solid shapes), Otsu thresholding isolates the target from the background by contrast, and the centroid of its largest contour is used directly via image moments since these targets typically have no internal corner structure for Harris detection to exploit.
+
+### Per-Point Diagnostic Logging
+
+**Logic:** An aggregate "Detected Targets: 2/3" result tells the user *that* a point failed, but not *why*. Without a specific reason, diagnosing a failed checkpoint means manually re-deriving the search window, re-checking the orthomosaic bounds, and re-inspecting the image by hand. This is exactly the slow, manual process this software exists to avoid.
+
+**Crucial Decision:** Each failure mode in the detection pipeline is checked and reported individually, rather than allowing a single generic `except: continue` to silently absorb every possible cause:
+
+```
+DEFINE diagnose_detection_failure(checkpoint, search_window):
+
+    IF checkpoint coordinate falls outside the orthomosaic's bounds:
+        REPORT "Coordinates are completely outside the Orthomosaic bounds."
+
+    ELSE IF the search window cannot be read (e.g. on the extreme edge of
+            the map, where a full window cannot be extracted):
+        REPORT "Could not read image window (Target is on the extreme edge
+                of the map)."
+
+    ELSE IF the search window contains no image data at all (NoData):
+        REPORT "Search window is empty/black (Target falls in NoData area)."
+        (This specifically catches checkpoints sitting in low-overlap
+        regions near flight-corridor edges, where Harris detection would
+        otherwise run against pure noise and silently return a
+        meaningless result rather than failing visibly.)
+
+    ELSE IF no corners/contours are found above threshold within the
+            search radius:
+        REPORT "Found 0 checkerboard corners within {radius}m." (or
+               equivalent for marker targets)
+```
+
+This converts an opaque statistical shortfall into an actionable, point-by-point diagnostic trail. This is directly informed by real-world testing where checkpoints near the edge of a flight corridor's overlap zone produced detection failures that an aggregate RMSE figure alone would not explain.
+
+### QA-Only Mode
+
+**Logic:** The reprojection step (OSTN15/OSGM15 transformation) and the QA step (target detection, RMSE calculation) are logically independent once an output file exists. Forcing a full re-reprojection every time a QA parameter is recalled wastes processing time on large rasters or point clouds for no benefit, since the geodetic output does not change between QA attempts.
+
+```
+DEFINE qa_only_routing(args):
+
+    IF --qa-only flag is set:
+        SKIP the reprojection step entirely.
+        ASSUME args.output already points to a previously-generated,
+        correctly transformed file.
+        PROCEED directly to QA Column Mapping and accuracy assessment.
+    ELSE:
+        RUN reprojection as normal, THEN proceed to QA if requested.
+```
+
+This supports an iterative QA workflow. A user can re-run accuracy assessment repeatedly against the same already-transformed output while adjusting target size or reviewing diagnostic output, without re-paying the cost of the geodetic transformation each time.
+
+### Statistical Reporting
+
+RMSE is calculated per the ASPRS Positional Accuracy Standards, Edition 2, which favours direct RMSE reporting over the legacy 95% confidence multiplier approach (the older multiplier methodology assumes normally distributed, symmetric error in X and Y, which does not always hold for UAV survey data). The PDF report states the survey's total control point count, GCP count, and CP count transparently. Sample size context is left for the reader to interpret alongside the RMSE figures themselves.
