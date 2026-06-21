@@ -82,7 +82,7 @@ The software supports two modes: a scriptable **CLI mode** for batch processing,
 python gridshift_cli.py
 ```
 
-This opens an interactive console session with numbered menus and native file/folder picker dialogs for selecting your input file, output location, grids folder, and optional QA checkpoint CSV.
+This opens an interactive console session with numbered menus and native file/folder picker dialogs for selecting your input file, output location, grids folder, and optional GCPs/Checkpoints CSV.
 
 **Using the pre-built `.exe` (no Python or setup required):**
 
@@ -98,7 +98,7 @@ UK_Precision_Gridshift_EXE/
     └── uk_os_osgm15_gb.tif
 ```
 
-Place your input files — your orthomosaic/DSM/DTM `.tif`, your LAS folder, and your QA CSV — into this same `UK_Precision_Gridshift_EXE` folder, alongside the `.exe` and `Transformation_Grids`. Then double-click `UK_Precision_GridShift.exe` and follow the prompts. The file picker dialogs will default to this folder, making your input files easy to find.
+Place your input files — your orthomosaic/DSM/DTM `.tif`, your LAS folder, and your Ground Control Points CSV — into this same `UK_Precision_Gridshift_EXE` folder, alongside the `.exe` and `Transformation_Grids`. Then double-click `UK_Precision_GridShift.exe` and follow the prompts. The file picker dialogs will default to this folder, making your input files easy to find.
 
 #### CLI Mode (With Arguments)
 
