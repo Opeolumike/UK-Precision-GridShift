@@ -186,13 +186,13 @@ Therefore, the tool's outputs should be interpreted within the broader survey ac
 
 ## Part 6: The Quality Assurance (QA) Engine
 
-**Logic:** The geodetic transformation is only half of a defensible survey deliverable — the other half is independent proof that the transformation produced accurate, usable output. The QA engine compares the tool's reprojected output against an independent survey CSV of Ground Control Points (GCPs) and Checkpoints (CPs), reporting positional accuracy using RMSE methodology consistent with ASPRS Positional Accuracy Standards, Edition 2.
+**Logic:** The geodetic transformation is only half of a defensible survey deliverable. The other half is independent proof that the transformation produced accurate, usable output. The QA engine compares the tool's reprojected output against an independent survey CSV of Ground Control Points (GCPs) and Checkpoints (CPs), thereby reporting positional accuracy using RMSE methodology consistent with ASPRS Positional Accuracy Standards, Edition 2.
 
 ### Why GCPs and CPs Must Be Separated
 
 GCPs are the control points used by the photogrammetry software during processing to align the model to real-world coordinates. CPs are deliberately held back during processing, specifically so they can independently verify the model's accuracy afterward.
 
-**Crucial Decision:** If the QA engine validated accuracy using GCPs (or a mix of GCPs and CPs), the result would be circular — GCPs are mathematically forced to fit well during processing, since they were used to *create* the model. This would produce an artificially optimistic accuracy figure rather than a genuine independent assessment.
+**Crucial Decision:** If the QA engine validated accuracy using GCPs (or a mix of GCPs and CPs), the result would be circular. GCPs are mathematically forced to fit well during processing, since they were used to *create* the model. This would produce an artificially optimistic accuracy figure rather than a genuine independent assessment.
 
 ```
 DEFINE filter_checkpoints(survey_csv, type_column, checkpoint_value):
@@ -214,7 +214,7 @@ DEFINE filter_checkpoints(survey_csv, type_column, checkpoint_value):
 
 ### Vertical Accuracy (Z): KD-Tree Inverse Distance Weighting
 
-**Logic:** For DEM (DSM/DTM) outputs, the true elevation at a checkpoint's exact coordinate can be read directly from the raster via bilinear sampling. For LAS point clouds, there is no continuous surface to sample — only discrete points scattered irregularly in space. The nearest single point is not necessarily representative, so we instead query the 5 nearest neighbours and weight them by inverse distance.
+**Logic:** For DEM (DSM/DTM) outputs, the true elevation at a checkpoint's exact coordinate can be read directly from the raster via bilinear sampling. For LAS point clouds, there is no continuous surface to sample, only discrete points scattered irregularly in space. The nearest single point is not necessarily representative, so we instead query the 5 nearest neighbours and weight them by inverse distance.
 
 ```
 DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
@@ -236,7 +236,7 @@ DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
             True_Z to calculate Delta_Z, Mean Bias, and RMSE.
 ```
 
-**Crucial Decision — Search Radius and Index Safety:** the default search radius was widened from 0.25m to 0.5m after testing showed some genuinely correct checkpoints failing to match any point within the tighter radius, particularly on point clouds with lower spatial density at survey edges. The lookup also keys results by the DataFrame's own index (`{i: np.nan for i in df.index}`) rather than a sequential list position — this guards against silent misalignment if the checkpoint subset has been filtered or re-indexed earlier in the pipeline, ensuring each computed elevation is always matched back to the correct original row rather than relying on row order being preserved by coincidence.
+**Crucial Decision — Search Radius and Index Safety:** A search radius of 0.5m was used after testing showed some genuinely correct checkpoints failing to match any point within the tighter radius, particularly on point clouds with lower spatial density at survey edges. The lookup also keys results by the DataFrame's own index (`{i: np.nan for i in df.index}`) rather than a sequential list position. This guards against silent misalignment if the checkpoint subset has been filtered or re-indexed earlier in the pipeline, ensuring each computed elevation is always matched back to the correct original row rather than relying on row order being preserved by coincidence.
 
 ### Horizontal Accuracy (X, Y): Automated Target Detection
 
@@ -248,7 +248,7 @@ DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
 search_radius = (physical_target_size / 2) + placement_tolerance_margin
 ```
 
-**Crucial Decision — Corner Detection via Centroid, Not Single Maximum:** For checkerboard targets, Harris corner detection responds strongly to every internal corner of the board, not just its centre. Taking the single strongest corner response risks landing on any one corner of the board — anywhere from the centre to an edge — introducing a positional bias on the order of the board's own physical size.
+**Crucial Decision — Corner Detection via Centroid, Not Single Maximum:** For checkerboard targets, Harris corner detection responds strongly to every internal corner of the board, not just its centre. Taking the single strongest corner response risks landing on any one corner of the board. This introduces a positional bias on the order of the board's own physical size.
 
 ```
 DEFINE locate_checkerboard_target(image_window):
@@ -303,7 +303,7 @@ This converts an opaque statistical shortfall into an actionable, point-by-point
 
 ### QA-Only Mode
 
-**Logic:** The reprojection step (OSTN15/OSGM15 transformation) and the QA step (target detection, RMSE calculation) are logically independent once an output file exists. Forcing a full re-reprojection every time a QA parameter is being tuned — board size, target type, or detection thresholds — wastes processing time on large rasters or point clouds for no benefit, since the geodetic output does not change between QA attempts.
+**Logic:** The reprojection step (OSTN15/OSGM15 transformation) and the QA step (target detection, RMSE calculation) are logically independent once an output file exists. Forcing a full re-reprojection every time the report is needed, wastes processing time on large rasters or point clouds for no benefit, since the geodetic output does not change between QA attempts.
 
 ```
 DEFINE qa_only_routing(args):
@@ -321,7 +321,7 @@ This supports an iterative QA workflow: a user can re-run accuracy assessment re
 
 ### Statistical Reporting
 
-RMSE is calculated per the ASPRS Positional Accuracy Standards, Edition 2, which favours direct RMSE reporting over the legacy 95% confidence multiplier approach (the older multiplier methodology assumes normally distributed, symmetric error in X and Y, which does not always hold for UAV survey data). The PDF report states the survey's total control point count, GCP count, and CP count transparently, without applying a pass/fail judgement to checkpoint quantity — sample size context is left for the reader to interpret alongside the RMSE figures themselves.
+RMSE is calculated based on the ASPRS Positional Accuracy Standards, Edition 2, which favours direct RMSE reporting over the legacy 95% confidence multiplier approach (the older multiplier methodology assumes normally distributed, symmetric error in X and Y, which does not always hold for UAV survey data). The PDF report states the survey's total control point count, GCP count, and CP count transparently. Sample size context is left for the reader to interpret alongside the RMSE figures themselves.
 
 #### The Mathematics Behind the RMSE Figures
 
@@ -350,7 +350,7 @@ DEFINE calculate_rmse(deltas):
     RETURN sqrt( mean( deltas² ) )
 ```
 
-For the horizontal engine, `deltas` is the array of `Img_E - True_E` (or `Img_N - True_N`) values across every successfully detected checkpoint. For the vertical engine, `deltas` is the array of `Model_Z - True_Z` values. Squaring before averaging means a single large outlier is penalised more heavily than several small errors of the same total magnitude — this is a deliberate property of RMSE (as opposed to, say, mean absolute error), consistent with how ASPRS defines the metric.
+For the horizontal engine, `deltas` is the array of `Img_E - True_E` (or `Img_N - True_N`) values across every successfully detected checkpoint. For the vertical engine, `deltas` is the array of `Model_Z - True_Z` values. Squaring before averaging means a single large outlier is penalised more heavily than several small errors of the same total magnitude. This is a deliberate property of RMSE consistent with how ASPRS defines the metric.
 
 **Radial RMSE (combining X and Y into a single 2D horizontal figure):**
 
@@ -374,6 +374,6 @@ Equivalently, `sqrt( RMSE_X² + RMSE_Y² + RMSE_Z² )`, since `RMSE_R²` already
 Mean_Bias_Z = (1/n) * Σ(ΔZ_i)
 ```
 
-Unlike RMSE, this is signed rather than squared — it answers a different question: not "how large are the errors on average" (RMSE) but "is there a systematic upward or downward trend across the survey" (bias). A small RMSE alongside a non-trivial mean bias would suggest a consistent offset (e.g. a calibration issue) rather than random scatter; this is reported separately precisely so the two effects aren't conflated into a single number.
+Unlike RMSE, this is signed rather than squared. It answers a different question: not "how large are the errors on average" (RMSE) but "is there a systematic upward or downward trend across the survey" (bias). A small RMSE alongside a non-trivial mean bias would suggest a consistent offset (e.g. a calibration issue) rather than random scatter; this is reported separately precisely so the two effects aren't aggregated into a single number.
 
-**Why this aligns with ASPRS Edition 2 specifically, rather than the older Edition 1 / NSSDA approach:** Edition 1 and the historical National Standard for Spatial Data Accuracy (NSSDA) report a 95% confidence interval derived by multiplying RMSE by a fixed constant (1.96 for a single axis, 1.7308 for circular/radial error), under the assumption that errors are normally distributed and symmetric between X and Y. Edition 2 instead recommends reporting RMSE directly, since UAV survey error is not reliably symmetric — exactly the failure mode this tool's own ASPRS X/Y asymmetry check (an earlier development iteration of the horizontal QA engine) was built to detect, before the methodology was simplified to direct RMSE reporting in line with the current standard.
+**Why this aligns with ASPRS Edition 2 specifically, rather than the older Edition 1 / NSSDA approach:**  Edition 1 and the historical National Standard for Spatial Data Accuracy (NSSDA) report a 95% confidence interval derived by multiplying RMSE by a fixed constant (1.96 for a single axis, 1.7308 for circular/radial error), under the assumption that errors are normally distributed and symmetric between X and Y. Edition 2 instead recommends reporting RMSE directly, since UAV survey error is not reliably symmetric — exactly the failure mode this tool's own ASPRS X/Y asymmetry check (an earlier development iteration of the horizontal QA engine) was built to detect, before the methodology was simplified to direct RMSE reporting in line with the current standard.
