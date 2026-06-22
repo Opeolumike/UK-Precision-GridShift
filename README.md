@@ -8,7 +8,7 @@ A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomos
 * Broad Data Compatibility: Supports UAV photogrammetry and LiDAR-derived datasets, including RGB/Multispectral Orthomosaics (.tif), DSMs/DTMs (.tif), and LAS Point Clouds (.las).
 * Hybrid Deployment: Features a traditional CLI for reproducible scripting, alongside an interactive GUI mode for simple, standalone Windows desktop use.
 * Automated QA Auditing: Built-in computer vision and spatial indexing engine autonomously validates positional accuracy against independent checkpoints recorded during the flight.
-* Automated Reporting: Generates 2D and 3D PDF accuracy reports in compliance with ASPRS Edition 2 RMSE standards.
+* Automated Reporting: Generates PDF accuracy reports in compliance with ASPRS Edition 2 RMSE standards.
 * Flexible Environments: Runs locally via a standalone .exe or Conda environment, and supports cloud processing via Google Colab (CLI mode only)
 
 ### Why Use this software?
