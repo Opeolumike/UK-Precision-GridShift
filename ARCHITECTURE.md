@@ -4,13 +4,13 @@
 
 **Last Updated:** June 2026
 
-**Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the tool, specifically defending the pipeline architecture against common PROJ library misconceptions.
+**Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the software, specifically defending the pipeline architecture against common PROJ library misconceptions.
 
 ---
 
 ## Part 1: System Initialisation and Failsafes
 
-**Logic:** Before any pixels or points are moved, the tool must verify the environment. Geodetic transformations fail silently if grid files are missing, falling back to lower-accuracy transformation methods. This tool enforces strict validation up front.
+**Logic:** Before any pixels or points are moved, the software must verify the environment. Geodetic transformations fail silently if grid files are missing, falling back to lower-accuracy transformation methods. This software enforces strict validation up front.
 
 ```
 START CLI ROUTING
@@ -165,28 +165,9 @@ DEFINE reproject_point_cloud(input_folder, output_folder, grids):
             SAVE file with "_BNG_ODN.las" suffix.
 ```
 
----
+## Part 5: The Quality Assurance (QA) Engine
 
-## Part 5: Accuracy Considerations and Intended Use
-
-It is important to note that:
-
-- OSTN15 provides centimetre-level horizontal transformation accuracy across Great Britain.
-- OSGM15 provides geoid separation modelling for deriving orthometric heights from ellipsoidal heights.
-- Actual end-user accuracy depends on:
-  - UAV GNSS quality
-  - Ground Control Points (GCPs) quality
-  - Image alignment quality
-  - Sensor calibration
-  - Photogrammetric processing quality
-
-Therefore, the tool's outputs should be interpreted within the broader survey accuracy standards and photogrammetric processing quality.
-
----
-
-## Part 6: The Quality Assurance (QA) Engine
-
-**Logic:** The geodetic transformation is only half of a defensible survey deliverable. The other half is independent proof that the transformation produced accurate, usable output. The QA engine compares the tool's reprojected output against an independent survey CSV of Ground Control Points (GCPs) and Checkpoints (CPs), thereby reporting positional accuracy using RMSE methodology consistent with ASPRS Positional Accuracy Standards, Edition 2.
+**Logic:** The geodetic transformation is only half of a defensible survey deliverable. The other half is independent proof that the transformation produced accurate, usable output. The QA engine compares the software's reprojected output against an independent survey CSV of Ground Control Points (GCPs) and Checkpoints (CPs), thereby reporting positional accuracy using RMSE methodology consistent with ASPRS Positional Accuracy Standards, Edition 2.
 
 ### Why GCPs and CPs Must Be Separated
 
@@ -271,7 +252,7 @@ For painted or marker-style targets (dots, crosses, solid shapes), Otsu threshol
 
 ### Per-Point Diagnostic Logging
 
-**Logic:** An aggregate "Detected Targets: 2/3" result tells the user *that* a point failed, but not *why*. Without a specific reason, diagnosing a failed checkpoint means manually re-deriving the search window, re-checking the orthomosaic bounds, and re-inspecting the image by hand — exactly the slow, manual process this tool exists to avoid.
+**Logic:** An aggregate "Detected Targets: 2/3" result tells the user *that* a point failed, but not *why*. Without a specific reason, diagnosing a failed checkpoint means manually re-deriving the search window, re-checking the orthomosaic bounds, and re-inspecting the image by hand — exactly the slow, manual process this software exists to avoid.
 
 **Crucial Decision:** Each failure mode in the detection pipeline is checked and reported individually, rather than allowing a single generic `except: continue` to silently absorb every possible cause:
 
@@ -325,7 +306,7 @@ RMSE is calculated based on the ASPRS Positional Accuracy Standards, Edition 2, 
 
 #### The Mathematics Behind the RMSE Figures
 
-ASPRS Edition 2 defines positional accuracy in terms of Root Mean Square Error (RMSE) computed independently per axis, then combined for radial (2D) and spherical (3D) reporting. For `n` independent checkpoints, where each checkpoint has a known surveyed coordinate (the "true" value) and a value read from the tool's reprojected output (the "model" value):
+ASPRS Edition 2 defines positional accuracy in terms of Root Mean Square Error (RMSE) computed independently per axis, then combined for radial (2D) and spherical (3D) reporting. For `n` independent checkpoints, where each checkpoint has a known surveyed coordinate (the "true" value) and a value read from the software's reprojected output (the "model" value):
 
 **Per-axis error (residual) for a single checkpoint i:**
 
@@ -376,4 +357,4 @@ Mean_Bias_Z = (1/n) * Σ(ΔZ_i)
 
 Unlike RMSE, this is signed rather than squared. It answers a different question: not "how large are the errors on average" (RMSE) but "is there a systematic upward or downward trend across the survey" (bias). A small RMSE alongside a non-trivial mean bias would suggest a consistent offset (e.g. a calibration issue) rather than random scatter; this is reported separately precisely so the two effects aren't aggregated into a single number.
 
-**Why this aligns with ASPRS Edition 2 specifically, rather than the older Edition 1 / NSSDA approach:**  Edition 1 and the historical National Standard for Spatial Data Accuracy (NSSDA) report a 95% confidence interval derived by multiplying RMSE by a fixed constant (1.96 for a single axis, 1.7308 for circular/radial error), under the assumption that errors are normally distributed and symmetric between X and Y. Edition 2 instead recommends reporting RMSE directly, since UAV survey error is not reliably symmetric — exactly the failure mode this tool's own ASPRS X/Y asymmetry check (an earlier development iteration of the horizontal QA engine) was built to detect, before the methodology was simplified to direct RMSE reporting in line with the current standard.
+**Why this aligns with ASPRS Edition 2 specifically, rather than the older Edition 1 / NSSDA approach:**  Edition 1 and the historical National Standard for Spatial Data Accuracy (NSSDA) report a 95% confidence interval derived by multiplying RMSE by a fixed constant (1.96 for a single axis, 1.7308 for circular/radial error), under the assumption that errors are normally distributed and symmetric between X and Y. Edition 2 instead reccommends reporting RMSE directly, since UAV survey error is not reliably symmetric.

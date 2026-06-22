@@ -179,3 +179,20 @@ The grid files used in this software were retrieved from the official sources li
 1.  **Rename the files:** Rename `OSTN15_NTv2_ETRStoOSGB.gsb` to `ostn15_etrs_to_osgb.gsb` and `uk_os_OSGM15_GB.tif` to `uk_os_osgm15_gb.tif`.
 
 2.  **Edit `gridshift_cli.py`:** Keep the original filenames and simply update the filename in `gridshift_cli.py` to match the raw filenames exactly.
+
+---
+
+## Accuracy Considerations and Intended Use
+
+It is important to note that:
+
+- OSTN15 provides centimetre-level horizontal transformation accuracy across Great Britain.
+- OSGM15 provides geoid separation modelling for deriving orthometric heights from ellipsoidal heights.
+- Actual end-user accuracy depends on:
+  - UAV GNSS quality
+  - Ground Control Points (GCPs) quality
+  - Image alignment quality
+  - Sensor calibration
+  - Photogrammetric processing quality
+
+Therefore, the software's outputs should be interpreted within the broader survey accuracy standards and photogrammetric processing quality.
