@@ -7,7 +7,7 @@ A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomos
 * High-Precision Geodetic Transformation: Applies OSTN15 horizontal and OSGM15 vertical grid transformations.
 * Broad Data Compatibility: Processes UAV photogrammetry and LiDAR-derived datasets, including RGB/Multispectral Orthomosaics (.tif), DSMs/DTMs (.tif), and LAS Point Clouds (.las).
 * Hybrid Deployment: Features a traditional CLI for reproducible scripting, alongside an interactive GUI mode for simple, standalone Windows desktop use.
-* Automated QA Reporting: Evaluates positional accuracy using independent checkpoints and reports results in [American Society for Photogrammetry and Remote Sensing (ASPRS) Edition 2 (v2.0) RMSE format](https://publicdocuments.asprs.org/PositionalAccuracyStd-Ed2-V2).
+* Automated QA Reporting: Evaluates positional accuracy using independent checkpoints and reports results in [American Society for Photogrammetry and Remote Sensing (ASPRS) Edition 2 (v2.0) RMSE](https://publicdocuments.asprs.org/PositionalAccuracyStd-Ed2-V2) format.
 * Automated Report Generation: Produces structured PDF reports for horizontal and vertical accuracy assessment.
 * Flexible Environments: Runs locally via a standalone .exe or Conda environment, and supports cloud processing via Google Colab (CLI mode only)
 
