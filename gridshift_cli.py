@@ -73,7 +73,14 @@ def reproject_multi_bng(input_path, output_path, grid_folder):
     bng_2d_pipeline = f"{bng_base} +nadgrids={ostn15_path}"
 
     with rasterio.open(input_path) as src:
-        transform, width, height = calculate_default_transform("EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds)
+        # Dynamically extract the native resolution of the input Orthomosaic
+        native_resolution = src.res[0]
+        
+        # Lock the GDAL grid reconstruction to the exact native resolution
+        transform, width, height = calculate_default_transform(
+            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
+            resolution=native_resolution
+        )
         # Grab the nodata value from the source file (or default to 0)
         src_nodata = src.nodata or 0
         
@@ -130,7 +137,14 @@ def reproject_ortho_rgb(input_path, output_path, grid_folder):
         src_nodata = src.nodata
         nodata = src_nodata if src_nodata is not None else 0
 
-        transform, width, height = calculate_default_transform("EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds)
+        # Dynamically extract the native resolution of the input Orthomosaic
+        native_resolution = src.res[0]
+        
+        # Lock the GDAL grid reconstruction to the exact native resolution
+        transform, width, height = calculate_default_transform(
+            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
+            resolution=native_resolution
+        )
 
         kwargs = src.meta.copy()
         kwargs.update({
@@ -207,7 +221,14 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
     
     print("Executing rasterio planimetric shift...")
     with rasterio.open(input_path) as src:
-        transform, width, height = calculate_default_transform("EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds)
+        # Dynamically extract the native resolution of the input DSM/DTM
+        native_resolution = src.res[0]
+        
+        # Lock the GDAL grid reconstruction to the exact native resolution
+        transform, width, height = calculate_default_transform(
+            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
+            resolution=native_resolution
+        )
 
         kwargs = src.meta.copy()
         kwargs.update({
