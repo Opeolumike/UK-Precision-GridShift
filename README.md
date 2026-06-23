@@ -1,5 +1,5 @@
 # UK Precision GridShift
-A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, DTMs, and LAS Point Clouds from WGS84 UTM Zone 30N to British National Grid/Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
+A CLI and GUI geospatial processing software for reprojecting RGB Orthomosaics, Multispectral Orthomosaics, DSMs, DTMs, and LAS Point Clouds from WGS84 UTM Zone 30N to British National Grid / Ordnance Datum Newlyn using Ordnance Survey OSTN15 and OSGM15 transformation grids.
 
 [Watch Demo Here](https://michaelopeoluwa.com/portfolio/uk-precision-gridshift-ostn15-osgm15-transformation/)
 
@@ -11,9 +11,13 @@ A CLI and GUI software for reprojecting RGB Orthomosaics, Multispectral Orthomos
 * Automated Report Generation: Produces structured PDF reports for horizontal and vertical accuracy assessment.
 * Flexible Environments: Runs locally via a standalone .exe or Conda environment, and supports cloud processing via Google Colab (CLI mode only)
 
-### Why Use this software?
+### Use Case Example
 
-Standard mathematical transformations (Helmert) can be off by up to 5 metres in the UK. This software uses the OSTN15/OSGM15 grid shifts to preserve centimetre-level accuracy, provided the input datasets are survey-grade.
+Construction companies increasingly use UAV photogrammetry and LiDAR-derived datasets to create detailed 3D representations of sites. However, these datasets are not always correctly aligned with national coordinate reference systems without an appropriate geodetic transformation.
+
+Small positional errors in digital terrain models and mapping products can affect downstream engineering workflows, including earthworks calculations, design decisions, and site measurements. Standard mathematical transformations (Helmert) can return metre-level differences in the UK.
+
+UK Precision GridShift is designed for UAV and LiDAR-derived geospatial datasets used in construction, civil engineering, and survey workflows. It enables transformation into the British National Grid with associated vertical datum correction (ODN), supporting applications such as terrain analysis, volumetrics, GIS integration, and engineering data preparation.
 
 > ⚠️ **Please note:** This software is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
 
