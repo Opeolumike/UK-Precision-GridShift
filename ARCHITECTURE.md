@@ -35,7 +35,7 @@ END
 
 **Crucial Decision:** For multispectral and raw RGB data, Nearest Neighbour resampling is required to preserve original spectral reflectance values. Using bilinear or cubic interpolation would mathematically average the adjacent pixels, altering the original spectral reflectance values captured by the drone sensors.
 
-**Crucial Decision — Locking Output Resolution to the Native Input GSD:** By default, `calculate_default_transform` computes its own output resolution for the destination CRS, based on the geometric distortion introduced by the reprojection itself. The output pixel size can end up subtly larger or smaller than the original Ground Sample Distance (GSD) the drone actually captured.
+**Locking Output Resolution to the Native Input GSD:** By default, `calculate_default_transform` computes its own output resolution for the destination CRS, based on the geometric distortion introduced by the reprojection itself. The output pixel size can end up subtly larger or smaller than the original Ground Sample Distance (GSD) the drone actually captured.
 
 The fix is to read the input raster's own native resolution and pass it explicitly to `calculate_default_transform`, rather than letting GDAL choose:
 
