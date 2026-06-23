@@ -35,6 +35,19 @@ END
 
 **Crucial Decision:** For multispectral and raw RGB data, Nearest Neighbour resampling is required to preserve original spectral reflectance values. Using bilinear or cubic interpolation would mathematically average the adjacent pixels, altering the original spectral reflectance values captured by the drone sensors.
 
+**Crucial Decision — Locking Output Resolution to the Native Input GSD:** By default, `calculate_default_transform` computes its own output resolution for the destination CRS, based on the geometric distortion introduced by the reprojection itself. This default behaviour is not wrong, but it is not predictable from the user's perspective — the output pixel size can end up subtly larger or smaller than the original Ground Sample Distance (GSD) the drone actually captured, depending on the specific bounds and projection involved. For a tool whose stated purpose is preserving survey-grade precision, an unpredictable resolution drift undermines that claim even if the geodetic transformation itself is correct.
+
+The fix is to read the input raster's own native resolution and pass it explicitly to `calculate_default_transform`, rather than letting GDAL choose:
+
+```
+DEFINE lock_output_resolution(input_raster):
+    READ native_resolution = input_raster's own pixel size (src.res[0])
+    PASS resolution=native_resolution into calculate_default_transform
+    (Overrides GDAL's auto-calculated resolution with the exact input GSD)
+```
+
+This guarantees the reprojected output preserves the same pixel size as the original capture, rather than an auto-derived approximation. One practical consequence worth being aware of: because this changes the exact output pixel grid (and therefore the exact sub-pixel position of every feature in the image, including survey targets), any QA accuracy figures generated against an orthomosaic reprojected with this fix are not directly numerically comparable to QA figures generated before this change was introduced — both are internally consistent and valid, but they are evaluating the targets at a different underlying pixel grid.
+
 ```
 DEFINE reproject_2D_raster(input, output, grids):
 
@@ -108,6 +121,11 @@ DEFINE reproject_dem_odn(input, output, grids):
 
     STEP 3: Planimetric Warp (The X/Y Shift)
         OPEN input WGS84 UTM Zone 30N DSM/DTM
+        LOCK output resolution to the input's native pixel size, rather
+            than letting GDAL auto-calculate it (see Part 2's note on
+            Locking Output Resolution — the same principle applies here:
+            elevation precision should not silently drift from the
+            original capture resolution during reprojection).
         WARP from WGS84 UTM Zone 30N to BNG using OSTN15 (Rasterio handles the precise footprint)
         ENFORCE Bilinear resampling (Elevation is continuous; bilinear prevents terracing).
         SAVE to output.
