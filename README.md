@@ -90,7 +90,7 @@ This opens an interactive console session with numbered menus and native file/fo
 
 **Using the pre-built `.exe` (no Python or setup required):**
 
-Download **[UK_Precision_Gridshift_EXE.zip file Here](https://github.com/Opeolumike/UK-Precision-GridShift/releases/download/v1.1.0/UK_Precision_Gridshift_EXE.zip)**. **Unzip it first** — running the `.exe` from inside the zip archive directly (without extracting) will fail, since it needs to read the `Transformation_Grids` folder sitting alongside it on disk.
+Download **[UK_Precision_Gridshift_EXE.zip file Here](https://github.com/Opeolumike/UK-Precision-GridShift/releases/download/v1.0.0/UK_Precision_Gridshift_EXE.zip)**. **Unzip it first** — running the `.exe` from inside the zip archive directly (without extracting) will fail, since it needs to read the `Transformation_Grids` folder sitting alongside it on disk.
 
 After unzipping, you'll have:
 
