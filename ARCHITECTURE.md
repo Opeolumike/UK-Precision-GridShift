@@ -2,7 +2,7 @@
 
 **Prepared By:** Michael Opeoluwa
 
-**Last Updated:** June 2026
+**Last Updated:** October 2026
 
 **Purpose:** To explain the architecture, mathematical pipelines, and design logic for the UK Precision GridShift. This document serves as the reference for the geodetic transformations applied within the software, specifically defending the pipeline architecture against common PROJ library misconceptions.
 
@@ -48,6 +48,16 @@ DEFINE lock_output_resolution(input_raster):
 
 This ensures the reprojected output preserves the same pixel size as the original capture, rather than an auto-derived approximation.
 
+**Crucial Decision: Explicit OSTN15 Operation for the Warp and the Output Grid:** Rasterio warps into the destination file using that file's own CRS (EPSG:27700). A `+nadgrids` definition passed as `dst_crs` is therefore not applied. With plain EPSG:27700, PROJ chooses its own operation: OSTN15 only when PROJ has its own copy of the grid installed, otherwise the 7-parameter Helmert. At the Exeter test site the Helmert placed the orthomosaic 1.11 m west and 1.16 m south of OSTN15, and the grid check in Part 1 did not catch it, because the warp never opened the grid file.
+
+The fix is to hand GDAL the explicit OSTN15 pipeline as `COORDINATE_OPERATION`, both when computing the output grid and when warping. It is the same horizontal pipeline the point cloud function uses (Part 4), so rasters and point clouds always share one transformation. The output grid origin is then snapped to whole multiples of the pixel size, so the same input always produces the same pixel grid, whichever PROJ grids are installed.
+
+```
+DEFINE bng_output_grid(input_raster, ostn15_operation):
+    CALCULATE the BNG bounding box with the OSTN15 operation, at the native resolution
+    SNAP the grid origin to whole multiples of the pixel size
+```
+
 ```
 DEFINE reproject_2D_raster(input, output, grids):
 
@@ -57,17 +67,18 @@ DEFINE reproject_2D_raster(input, output, grids):
         CHECK if "ostn15_etrs_to_osgb.gsb" exists.
         IF NOT: Halt program. (We do not allow fallback to low-precision Helmert math).
 
-    STEP 3: Define the strict BNG Pipeline
-        SET Base = Transverse Mercator, Airy Ellipsoid, False Origin (400k, -100k)
-        SET Grid = Append OSTN15 horizontal shift to Base
+    STEP 3: Define the strict OSTN15 operation
+        SET Pipeline = Inverse UTM Zone 30N, OSTN15 horizontal shift (hgridshift),
+                       Transverse Mercator, Airy Ellipsoid, False Origin (400k, -100k)
 
     STEP 4: Raster Warping
         OPEN input WGS84 UTM Zone 30N raster
-        CALCULATE the new bounding box and resolution for BNG
+        CALCULATE the BNG output grid with bng_output_grid (OSTN15 operation, snapped origin)
         CREATE an empty destination raster with these new dimensions
 
         FOR EACH spectral band in the raster:
-            WARP pixels from WGS84 UTM Zone 30N to BNG using the OSTN15 pipeline
+            WARP pixels from WGS84 UTM Zone 30N to BNG, passing the OSTN15
+                operation as COORDINATE_OPERATION (never PROJ's own choice)
             ENFORCE Nearest Neighbour resampling to preserve raw spectral data
 
     STEP 5: SAVE and CLOSE.
@@ -126,7 +137,8 @@ DEFINE reproject_dem_odn(input, output, grids):
             Locking Output Resolution — the same principle applies here:
             elevation precision should not silently drift from the
             original capture resolution during reprojection).
-        WARP from WGS84 UTM Zone 30N to BNG using OSTN15 (Rasterio handles the precise footprint)
+        CALCULATE the BNG output grid with bng_output_grid (Part 2)
+        WARP from WGS84 UTM Zone 30N to BNG with the explicit OSTN15 operation (Part 2)
         ENFORCE Bilinear resampling (Elevation is continuous; bilinear prevents terracing).
         SAVE to output.
 
@@ -247,26 +259,47 @@ DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
 search_radius = (physical_target_size / 2) + placement_tolerance_margin
 ```
 
-**Crucial Decision — Corner Detection via Centroid, Not Single Maximum:** For checkerboard targets, Harris corner detection responds strongly to every internal corner of the board, not just its centre. Taking the single strongest corner response risks landing on any one corner of the board. This introduces a positional bias on the order of the board's own physical size.
+The search window is a square that extends the full search radius on every side of the surveyed point, so a target up to 0.5 m from where it was surveyed is still inside it. A target further out than that is reported as not found rather than measured.
+
+**Crucial Decision: Checkerboard Centre from the Board Outline, Not a Centroid of Corners:** An earlier version averaged every pixel scoring above 10% of the strongest Harris corner response in the window. That centroid includes ground texture and only part of the board's outline, so it is pulled towards the middle of the search window, which is the surveyed point itself. In a synthetic test with the boards placed 1.61 m from their surveyed positions, it reported an RMSE of 0.05 m. It also moved by up to 0.27 m when the same orthomosaic was resampled onto a grid offset by less than a pixel.
+
+Field boards rarely show a clean black and white X. In the Exeter test data, sun glare washed one dark square out to near white, dark squares matched the grass, and the white squares carried printed letters. What stays clear is that the white squares are the brightest thing on the ground, so the board is found from its outline and then refined to the point where its squares meet:
 
 ```
-DEFINE locate_checkerboard_target(image_window):
+DEFINE locate_checkerboard_centre(image_window, target_size):
 
-    STEP 1: Run Harris corner detection across the cropped search window.
+    STEP 1: THRESHOLD the window halfway between the typical ground
+            brightness and the brightest board white.
 
-    STEP 2: Threshold the result, keeping every pixel scoring above 10% of
-            the maximum corner response in this window (not just the single
-            strongest pixel).
+    STEP 2: REMOVE thin bright features (grass blades, pipes, cables)
+            with a morphological opening about an eighth of the board wide.
 
-    STEP 3: CALCULATE the centroid (mean X, mean Y) of all pixels that
-            passed the threshold.
+    STEP 3: TAKE the largest bright piece and every other bright piece
+            within one board width of it (the board's white squares).
+            IF any of them touches the window edge, REPORT not found.
 
-    This centroid converges toward the board's true geometric centre,
-    since the board's corners are arranged symmetrically around it —
-    whereas any single corner is not.
+    STEP 4: FIT the smallest rectangle enclosing those pieces. Its centre
+            is the board centre, whether the white parts are two squares
+            meeting at a corner or three squares in an L.
+            IF its area is not about the board's area, REPORT not found.
+
+    STEP 5: REFINE that centre to the exact point where the squares meet
+            (OpenCV cornerSubPix). Keep the refined point only if it stays
+            within a tenth of the board width of the rectangle centre.
+
+    STEP 6: CHECK that brightness changes on a small ring around the point,
+            as it does where light and dark squares meet. IF it does not,
+            REPORT not found. (This stops one white square of a larger board
+            being measured as the whole board when the size entered is too
+            small.)
+
+    STEP 7: CONVERT the sub-pixel position to BNG, adding half a pixel to
+            move from the pixel centre to the raster's corner convention.
 ```
 
-For painted or marker-style targets (dots, crosses, solid shapes), Otsu thresholding isolates the target from the background by contrast, and the centroid of its largest contour is used directly via image moments — appropriate since these targets typically have no internal corner structure for Harris detection to exploit.
+Because the board is found from its own outline, the result does not depend on where the surveyed point sits in the window. In a synthetic test at 6.2 mm pixels, this located 0.5 m boards to within 2 to 4 mm on two grids offset by a fraction of a pixel, and reported every board as not found when the orthomosaic was 1.61 m out. On the Exeter test boards, the result did not change whether the board size was entered as 0.45 m or 0.5 m. Every threshold is a fraction of the board size entered, so other sizes work the same way: 0.3 m and 1 m boards were located to within 2 to 5 mm. A size entered well away from the real board (more than about a fifth out) is reported as not found, with a prompt to check the size, rather than measured.
+
+For painted or marker-style targets (dots, crosses, solid shapes), Otsu thresholding isolates the target from the background by contrast, and the centroid of its largest contour is used directly via image moments. This suits these targets, since they typically have no internal corner structure for Harris detection to exploit. The centroid is kept to sub-pixel precision rather than truncated to a whole pixel.
 
 ### Per-Point Diagnostic Logging
 
@@ -292,10 +325,10 @@ DEFINE diagnose_detection_failure(checkpoint, search_window):
         otherwise run against pure noise and silently return a
         meaningless result rather than failing visibly.)
 
-    ELSE IF no corners/contours are found above threshold within the
-            search radius:
-        REPORT "Found 0 checkerboard corners within {radius}m." (or
-               equivalent for marker targets)
+    ELSE IF no board (or marker) is found within the search radius, the
+            board is cut by the window edge, or the bright shape found is
+            not the size of the board:
+        REPORT the reason and the search radius for that point.
 ```
 
 This converts an opaque statistical shortfall into an actionable, point-by-point diagnostic trail — directly informed by real-world testing where checkpoints near the edge of a flight corridor's overlap zone produced detection failures that an aggregate RMSE figure alone would not explain.
@@ -320,7 +353,7 @@ This supports an iterative QA workflow: a user can re-run accuracy assessment re
 
 ### Statistical Reporting
 
-RMSE is calculated based on the ASPRS Positional Accuracy Standards, Edition 2, which favours direct RMSE reporting over the legacy 95% confidence multiplier approach (the older multiplier methodology assumes normally distributed, symmetric error in X and Y, which does not always hold for UAV survey data). The PDF report states the survey's total control point count, GCP count, and CP count transparently. Sample size context is left for the reader to interpret alongside the RMSE figures themselves.
+RMSE is calculated based on the ASPRS Positional Accuracy Standards, Edition 2, which favours direct RMSE reporting over the legacy 95% confidence multiplier approach (the older multiplier methodology assumes normally distributed, symmetric error in X and Y, which does not always hold for UAV survey data). The PDF report states the survey's total control point count, GCP count, and CP count transparently, along with the target type, target size and search radius used for detection, so any two reports can be compared like for like. The footer carries the GridShift version. Sample size context is left for the reader to interpret alongside the RMSE figures themselves.
 
 #### The Mathematics Behind the RMSE Figures
 

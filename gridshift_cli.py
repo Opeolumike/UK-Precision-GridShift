@@ -29,7 +29,7 @@ import glob
 import argparse
 import numpy as np
 import rasterio
-from rasterio.warp import calculate_default_transform, reproject, Resampling
+from rasterio.warp import calculate_default_transform, reproject, Resampling, aligned_target
 import pyproj
 from pyproj import Transformer, CRS
 import laspy
@@ -47,6 +47,55 @@ import warnings
 
 # This silences DeprecationWarnings so users only see clean output
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# Software version, printed in every QA report
+GRIDSHIFT_VERSION = "1.2.0"
+
+# ==============================================================================
+# 0. SHARED OSTN15 PLANIMETRIC TRANSFORMATION
+# ==============================================================================
+def bng_2d_operation(ostn15_path):
+    """Return the explicit OSTN15 pipeline from WGS84 UTM 30N to BNG.
+
+    This is the same horizontal pipeline the LAS function uses. It is handed to
+    GDAL as COORDINATE_OPERATION so the raster warps always apply OSTN15 from
+    the grid file in Transformation_Grids. Without it, GDAL warps to
+    EPSG:27700 with whatever operation PROJ picks itself: OSTN15 only if PROJ
+    has its own copy of the grid, otherwise the 7-parameter Helmert, which is
+    about 1 m out.
+    """
+    return (
+        "+proj=pipeline "
+        # UTM 30N easting and northing back to ETRS89 (WGS84) longitude and latitude
+        "+step +inv +proj=utm +zone=30 +ellps=WGS84 "
+        # OSTN15 shift from ETRS89 to OSGB36 longitude and latitude
+        f"+step +proj=hgridshift +grids={ostn15_path} "
+        # OSGB36 longitude and latitude to British National Grid on the Airy ellipsoid
+        "+step +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 "
+        "+x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
+    )
+
+
+def bng_output_grid(src, operation):
+    """Work out the BNG output grid for a UTM 30N raster.
+
+    The extent is computed with the same OSTN15 operation as the warp, at the
+    input's native resolution, then snapped to whole multiples of the pixel
+    size. Every environment and build therefore produces the same grid for the
+    same input, whatever PROJ grids it has installed.
+    """
+    # Native ground sample distance of the input raster
+    native_resolution = src.res[0]
+
+    # Output extent and size from the explicit OSTN15 operation
+    transform, width, height = calculate_default_transform(
+        "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds,
+        resolution=native_resolution, COORDINATE_OPERATION=operation
+    )
+
+    # Snap the origin to whole pixels so the pixel grid never depends on small
+    # differences in the computed extent
+    return aligned_target(transform, width, height, native_resolution)
 
 # ==============================================================================
 # 1. MULTISPECTRAL ORTHOMOSAIC
@@ -68,19 +117,13 @@ def reproject_multi_bng(input_path, output_path, grid_folder):
             "Ensure the file is named correctly. Strict BNG precision is enforced."
         )
     
-    # Define the high-precision BNG pipeline
-    bng_base = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
-    bng_2d_pipeline = f"{bng_base} +nadgrids={ostn15_path}"
+    # Explicit OSTN15 pipeline used for both the output grid and the warp
+    bng_2d_pipeline = bng_2d_operation(ostn15_path)
 
     with rasterio.open(input_path) as src:
-        # Dynamically extract the native resolution of the input Orthomosaic
-        native_resolution = src.res[0]
-        
-        # Lock the GDAL grid reconstruction to the exact native resolution
-        transform, width, height = calculate_default_transform(
-            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
-            resolution=native_resolution
-        )
+        # BNG output grid at the native resolution, snapped to whole pixels
+        transform, width, height = bng_output_grid(src, bng_2d_pipeline)
+
         # Grab the nodata value from the source file (or default to 0)
         src_nodata = src.nodata or 0
         
@@ -102,10 +145,12 @@ def reproject_multi_bng(input_path, output_path, grid_folder):
                     src_transform=src.transform,
                     src_crs="EPSG:32630",
                     dst_transform=transform,
-                    dst_crs=bng_2d_pipeline,
+                    dst_crs="EPSG:27700",
                     src_nodata=src_nodata,
-                    dst_nodata=src_nodata, 
-                    resampling=Resampling.nearest
+                    dst_nodata=src_nodata,
+                    resampling=Resampling.nearest,
+                    # Force GDAL to apply the OSTN15 pipeline, not its own choice
+                    COORDINATE_OPERATION=bng_2d_pipeline
                 )
     print(f"✅ Success: {output_path}")
 
@@ -129,22 +174,15 @@ def reproject_ortho_rgb(input_path, output_path, grid_folder):
             "Ensure the file is named correctly. Strict BNG precision is enforced."
         )
     
-    # Define the high-precision BNG pipeline
-    bng_base = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
-    bng_2d_pipeline = f"{bng_base} +nadgrids={ostn15_path}"
+    # Explicit OSTN15 pipeline used for both the output grid and the warp
+    bng_2d_pipeline = bng_2d_operation(ostn15_path)
 
     with rasterio.open(input_path) as src:
         src_nodata = src.nodata
         nodata = src_nodata if src_nodata is not None else 0
 
-        # Dynamically extract the native resolution of the input Orthomosaic
-        native_resolution = src.res[0]
-        
-        # Lock the GDAL grid reconstruction to the exact native resolution
-        transform, width, height = calculate_default_transform(
-            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
-            resolution=native_resolution
-        )
+        # BNG output grid at the native resolution, snapped to whole pixels
+        transform, width, height = bng_output_grid(src, bng_2d_pipeline)
 
         kwargs = src.meta.copy()
         kwargs.update({
@@ -164,10 +202,12 @@ def reproject_ortho_rgb(input_path, output_path, grid_folder):
                     src_transform=src.transform,
                     src_crs="EPSG:32630",
                     dst_transform=transform,
-                    dst_crs=bng_2d_pipeline,
+                    dst_crs="EPSG:27700",
                     src_nodata=src_nodata,
                     dst_nodata=nodata,
-                    resampling=Resampling.nearest
+                    resampling=Resampling.nearest,
+                    # Force GDAL to apply the OSTN15 pipeline, not its own choice
+                    COORDINATE_OPERATION=bng_2d_pipeline
                 )
     print(f"✅ Success: {output_path}")
 
@@ -206,10 +246,9 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
         combined_errors = "\n\n".join(missing_errors)
         raise FileNotFoundError(f"\n\n{combined_errors}")
         
-    # Define the high-precision BNG pipeline
-    bng_base = "+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
-    bng_2d_pipeline = f"{bng_base} +nadgrids={ostn15_path}"
-    
+    # Explicit OSTN15 pipeline used for both the output grid and the warp
+    bng_2d_pipeline = bng_2d_operation(ostn15_path)
+
     # Build the Z-shift pipeline using PyProj
     z_shift_pipeline = (
         f"+proj=pipeline "
@@ -221,14 +260,8 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
     
     print("Executing rasterio planimetric shift...")
     with rasterio.open(input_path) as src:
-        # Dynamically extract the native resolution of the input DSM/DTM
-        native_resolution = src.res[0]
-        
-        # Lock the GDAL grid reconstruction to the exact native resolution
-        transform, width, height = calculate_default_transform(
-            "EPSG:32630", "EPSG:27700", src.width, src.height, *src.bounds, 
-            resolution=native_resolution
-        )
+        # BNG output grid at the native resolution, snapped to whole pixels
+        transform, width, height = bng_output_grid(src, bng_2d_pipeline)
 
         kwargs = src.meta.copy()
         kwargs.update({
@@ -247,10 +280,12 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
                 src_transform=src.transform,
                 src_crs="EPSG:32630",
                 dst_transform=transform,
-                dst_crs=bng_2d_pipeline,
+                dst_crs="EPSG:27700",
                 src_nodata=src.nodata,
                 dst_nodata=-9999,
-                resampling=Resampling.bilinear
+                resampling=Resampling.bilinear,
+                # Force GDAL to apply the OSTN15 pipeline, not its own choice
+                COORDINATE_OPERATION=bng_2d_pipeline
             )
 
         print("Applying OSGM15 vertical shift...")
@@ -437,7 +472,7 @@ class QAReport(FPDF):
         self.set_y(-15)
         self.set_text_color(128, 128, 128)
         self.set_font("helvetica", "I", 8)
-        self.cell(0, 10, f"Engineered by UK Precision GridShift v1.0  |  Page {self.page_no()}", 0, 0, "C")
+        self.cell(0, 10, f"Engineered by UK Precision GridShift v{GRIDSHIFT_VERSION}  |  Page {self.page_no()}", 0, 0, "C")
 
     def section_title(self, title):
         self.set_font("helvetica", "B", 12)
@@ -499,6 +534,14 @@ def generate_pdf_report(qa_df, stats, report_type, args, total_pts, cp_count, gc
     # Statistical Table
     pdf.section_title(f"Statistical Overview ({report_type.upper()} Analysis)")
     pdf.meta_row("Checkpoints Successfully Detected:", detected_count)
+
+    # Horizontal results depend on the target settings, so record them
+    if report_type in ["horizontal", "3d"]:
+        target_size = getattr(args, "target_size", None)
+        if target_size is not None:
+            search_radius = target_size / 2.0 + 0.5
+            pdf.meta_row("Target Detection:", f"{str(args.target_type).capitalize()}, {target_size:.2f} m, "
+                                              f"sub-pixel centre, search radius {search_radius:.2f} m")
     
     if report_type == "3d":
         pdf.meta_row("RMSE (X):", f"{stats['rmse_x']:.3f} m")
@@ -650,6 +693,126 @@ def run_universal_qa_vertical(processed_path, file_type, df, args):
     print("========================================")
     return cps, stats, "vertical"
 
+# Target locators for Horizontal QA
+def locate_checkerboard_centre(gray, target_size_px):
+    """Find the centre of a checkerboard target to sub-pixel accuracy.
+
+    Field boards rarely show a clean black and white X: sun glare can wash a
+    dark square out to near white, dark squares can match the grass, and the
+    white squares often carry printed letters. What stays clear is that the
+    white squares are the brightest thing on the ground. The smallest
+    rectangle enclosing them is centred on the board, whether the white parts
+    are two squares meeting at a corner or three squares in an L. That centre
+    is then refined to the exact point where the squares meet.
+
+    Because the board is found from its own outline, the result does not
+    depend on where the surveyed point sits in the search window.
+
+    Returns ((x, y), None) in window pixel coordinates, with pixel centres at
+    whole numbers, or (None, reason) when no board is found.
+    """
+    # Light smoothing to steady the threshold against single-pixel noise
+    smooth = cv2.GaussianBlur(gray.astype(np.float32), (0, 0), 1.0)
+
+    # Typical ground brightness and the brightest board white in the window
+    ground = float(np.median(smooth))
+    white = float(np.percentile(smooth, 99.5))
+    if white - ground < 40:
+        return None, "no bright board found"
+
+    # Keep pixels brighter than halfway between ground and board white
+    mask = (smooth > (ground + white) / 2).astype(np.uint8)
+
+    # Remove thin bright features (grass blades, pipes, cables) that are
+    # narrower than about an eighth of the board
+    kernel_size = max(3, int(0.12 * target_size_px)) | 1
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    # Bright pieces at least a quarter of one board square in area
+    n, labels, stats, centroids = cv2.connectedComponentsWithStats(mask, 8)
+    square_area = (target_size_px / 2) ** 2
+    pieces = [i for i in range(1, n) if stats[i, cv2.CC_STAT_AREA] >= 0.25 * square_area]
+    if not pieces:
+        return None, "no bright board found"
+
+    # The largest piece is part of the board. The other white squares sit
+    # within one board width of it, so gather those as well
+    seed = max(pieces, key=lambda i: stats[i, cv2.CC_STAT_AREA])
+    board = [i for i in pieces if np.hypot(*(centroids[i] - centroids[seed])) <= 0.85 * target_size_px]
+
+    # A board cut by the window edge cannot be centred, so do not measure it
+    height, width = gray.shape
+    for i in board:
+        x, y, piece_w, piece_h = stats[i, :4]
+        if x == 0 or y == 0 or x + piece_w >= width or y + piece_h >= height:
+            return None, "the board is cut by the edge of the search window"
+
+    # Smallest rectangle enclosing the white squares. Two squares meeting at a
+    # corner fit the board square or a diagonal rectangle of the same area,
+    # and both share the board's centre
+    ys, xs = np.nonzero(np.isin(labels, board))
+    (centre_x, centre_y), (rect_w, rect_h), _ = cv2.minAreaRect(np.column_stack([xs, ys]).astype(np.float32))
+
+    # The rectangle must be about the size of the board. A single square, or
+    # a bright patch of ground, fails this check
+    area_ratio = rect_w * rect_h / target_size_px ** 2
+    if not 0.45 <= area_ratio <= 1.6:
+        return None, "the bright shape found is not the size of the board. Check the board size entered"
+
+    # Refine to the exact point where the squares meet, the method OpenCV
+    # uses for chessboard corners
+    half_win = max(3, int(0.08 * target_size_px))
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+    start = np.array([[[centre_x, centre_y]]], dtype=np.float32)
+    refined = cv2.cornerSubPix(smooth, start, (half_win, half_win), (-1, -1), criteria)
+    refined_x, refined_y = float(refined[0, 0, 0]), float(refined[0, 0, 1])
+
+    # Keep the refined point only if it stayed near the board centre. A large
+    # move means it ran to a printed letter or the board edge instead
+    if np.hypot(refined_x - centre_x, refined_y - centre_y) <= 0.1 * target_size_px:
+        point_x, point_y = refined_x, refined_y
+    else:
+        point_x, point_y = float(centre_x), float(centre_y)
+
+    # Confirm the point is where light and dark squares meet. A ring around a
+    # board centre crosses all four squares, so its brightness changes. A ring
+    # inside one white square does not, which is what happens when a board
+    # larger than the size entered is mistaken for one of its own squares
+    radius = 0.2 * target_size_px
+    angles = np.linspace(0, 2 * np.pi, 32, endpoint=False, dtype=np.float32)
+    ring_x = (point_x + radius * np.cos(angles)).reshape(1, -1)
+    ring_y = (point_y + radius * np.sin(angles)).reshape(1, -1)
+    ring = cv2.remap(smooth, ring_x, ring_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    if float(ring.max() - ring.min()) < 0.3 * (white - ground):
+        return None, "no light and dark squares meet at the centre of the shape found. Check the board size entered"
+
+    return (point_x, point_y), None
+
+
+def locate_marker_centre(gray):
+    """Find the centre of a painted or marker target to sub-pixel accuracy.
+
+    Otsu thresholding separates the target from the ground by contrast, and
+    the centroid of the largest contour is the target centre.
+
+    Returns ((x, y), None) in window pixel coordinates, or (None, reason).
+    """
+    # Light blur, then split target from ground by contrast
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return None, "no distinct shapes or markers found"
+
+    # Centroid of the largest shape, kept as a float (no rounding to a pixel)
+    largest_contour = max(contours, key=cv2.contourArea)
+    moments = cv2.moments(largest_contour)
+    if moments["m00"] == 0:
+        return None, "marker contour detected, but its centre could not be calculated"
+    return (moments["m10"] / moments["m00"], moments["m01"] / moments["m00"]), None
+
+
 # Engine for Horizontal QA (X,Y Accuracy)
 def run_automated_horizontal_qa(ortho_path, df, args):
     print("\n[QA] Initialising OpenCV Horizontal Accuracy Assessment (X,Y)...")
@@ -663,74 +826,76 @@ def run_automated_horizontal_qa(ortho_path, df, args):
     cps['Img_E'], cps['Img_N'], cps['Shift_m'] = np.nan, np.nan, np.nan
     cps['True_E'], cps['True_N'] = cps[args.col_e], cps[args.col_n]
 
+    # Search radius around each surveyed point: half the target plus 0.5 m
     effective_radius = (args.target_size / 2.0) + 0.5
 
     with rasterio.open(ortho_path) as src:
         pixel_size_x, pixel_size_y = src.res
-        search_pixels = int(effective_radius / pixel_size_x)
+
+        # Half the window side in pixels, so the window spans the full radius
+        # on every side of the surveyed point
+        half_pixels = int(np.ceil(effective_radius / pixel_size_x))
+
+        # Target size in pixels, used to scale the checkerboard locator
+        target_size_px = args.target_size / pixel_size_x
+
+        # The full raster as a window, for clipping search windows at its edges
+        full_raster = Window(0, 0, src.width, src.height)
 
         for index, row in cps.iterrows():
             rtk_e, rtk_n = row[args.col_e], row[args.col_n]
             point_id = row[args.col_id]
-            
-            try: 
-                py, px = src.index(rtk_e, rtk_n)
-            except Exception: 
+
+            # Surveyed point as a fractional pixel position (column, row)
+            col_f, row_f = ~src.transform * (rtk_e, rtk_n)
+            if not (0 <= col_f < src.width and 0 <= row_f < src.height):
                 print(f"  [Point {point_id}] ⚠️ Failed: CSV Coordinates ({rtk_e:.1f}, {rtk_n:.1f}) are completely outside the Orthomosaic bounds.")
                 continue
 
-            window = Window(col_off=px - (search_pixels//2), row_off=py - (search_pixels//2), width=search_pixels, height=search_pixels)
+            # Square search window centred on the surveyed point, clipped to the raster
+            col_off = int(np.floor(col_f)) - half_pixels
+            row_off = int(np.floor(row_f)) - half_pixels
+            side = 2 * half_pixels + 1
+            window = Window(col_off, row_off, side, side).intersection(full_raster)
+
             try:
-                img_data = src.read((1, 2, 3), window=window)
+                # Read the RGB bands, or the single band of a one-band image
+                bands = (1, 2, 3) if src.count >= 3 else (1,)
+                img_data = src.read(bands, window=window)
                 if img_data.dtype == 'uint16': img_data = (img_data / 256).astype('uint8')
                 
                 # Check if the search window is mostly black/empty (NoData)
                 if not np.any(img_data):
                     print(f"  [Point {point_id}] ⚠️ Failed: Search window is empty/black (Target falls in NoData area).")
                     continue
-                    
-                gray = cv2.cvtColor(np.transpose(img_data, (1, 2, 0)), cv2.COLOR_RGB2GRAY)
+
+                # Greyscale for detection
+                if len(bands) == 3:
+                    gray = cv2.cvtColor(np.ascontiguousarray(np.transpose(img_data, (1, 2, 0))), cv2.COLOR_RGB2GRAY)
+                else:
+                    gray = np.ascontiguousarray(img_data[0])
             except Exception: 
                 print(f"  [Point {point_id}] ⚠️ Failed: Could not read image window (Target is on the extreme edge of the map).")
                 continue
 
+            # Locate the target centre within the window
             if args.target_type == 'checkerboard':
-                gray = np.float32(gray)
-                corners = cv2.cornerHarris(gray, 2, 3, 0.04)
-
-                corner_thresh = corners > 0.1 * corners.max()
-
-                y_coords, x_coords = np.where(corner_thresh)
-
-                if len(x_coords) > 0:
-                    target_px = int(np.mean(x_coords))
-                    target_py = int(np.mean(y_coords))
-                else:
-                    print(f"  [Point {point_id}] ⚠️ Failed: Image was read, but OpenCV found 0 checkerboard corners within {effective_radius}m.")
-                    continue
-                    
+                centre, reason = locate_checkerboard_centre(gray, target_size_px)
             elif args.target_type == 'marker':
-                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                _, thresh = cv2.threshold(blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-                contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-                
-                if contours:
-                    largest_contour = max(contours, key=cv2.contourArea)
-                    M = cv2.moments(largest_contour)
-                    if M["m00"] != 0:
-                        target_px = int(M["m10"] / M["m00"])
-                        target_py = int(M["m01"] / M["m00"])
-                    else:
-                        print(f"  [Point {point_id}] ⚠️ Failed: Marker contour detected, but center mass could not be calculated.")
-                        continue
-                else:
-                    print(f"  [Point {point_id}] ⚠️ Failed: No distinct shapes/markers found within {effective_radius}m.")
-                    continue
+                centre, reason = locate_marker_centre(gray)
+            else:
+                centre, reason = None, f"unknown target type '{args.target_type}'"
 
-            # Translate local pixel to global BNG pixel
-            global_px = (px - (search_pixels // 2)) + target_px
-            global_py = (py - (search_pixels // 2)) + target_py
-            img_e, img_n = src.xy(global_py, global_px)
+            if centre is None:
+                print(f"  [Point {point_id}] ⚠️ Failed within {effective_radius:.2f} m of the surveyed point: {reason}.")
+                continue
+
+            # Window pixel position to BNG: add the window offset, then move
+            # from the OpenCV pixel centre convention to the raster's corner
+            # convention by adding half a pixel
+            target_col = window.col_off + centre[0] + 0.5
+            target_row = window.row_off + centre[1] + 0.5
+            img_e, img_n = src.transform * (target_col, target_row)
             
             cps.at[index, 'Img_E'], cps.at[index, 'Img_N'] = img_e, img_n
             cps.at[index, 'Shift_m'] = np.hypot(img_e - rtk_e, img_n - rtk_n)
