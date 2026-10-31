@@ -117,8 +117,10 @@ def build():
     shutil.copy2(exe_file, release / exe_file.name)
     shutil.copytree(REPO / "Transformation_Grids", release / "Transformation_Grids")
 
-    # Zip of the release folder for the GitHub release
-    archive = shutil.make_archive(str(DIST / RELEASE_NAME), "zip", root_dir=DIST, base_dir=RELEASE_NAME)
+    # Zip for the GitHub release, holding the executable and the grids folder
+    # at its top level. Windows "Extract All" already unpacks into a folder
+    # named after the zip, so a folder inside it would be nested twice
+    archive = shutil.make_archive(str(DIST / RELEASE_NAME), "zip", root_dir=release)
     size_mb = exe_file.stat().st_size / 1e6
     print(f"\nBuilt {release / exe_file.name} ({size_mb:.0f} MB)")
     print(f"Release zip: {archive}")
