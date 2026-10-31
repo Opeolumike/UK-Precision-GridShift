@@ -134,7 +134,7 @@ DEFINE reproject_dem_odn(input, output, grids):
         OPEN input WGS84 UTM Zone 30N DSM/DTM
         LOCK output resolution to the input's native pixel size, rather
             than letting GDAL auto-calculate it (see Part 2's note on
-            Locking Output Resolution — the same principle applies here:
+            Locking Output Resolution. The same principle applies here:
             elevation precision should not silently drift from the
             original capture resolution during reprojection).
         CALCULATE the BNG output grid with bng_output_grid (Part 2)
@@ -247,13 +247,13 @@ DEFINE sample_las_elevation(point_cloud, checkpoint_coordinate, search_radius):
             True_Z to calculate Delta_Z, Mean Bias, and RMSE.
 ```
 
-**Crucial Decision — Search Radius and Index Safety:** A search radius of 0.5m was used after testing showed some genuinely correct checkpoints failing to match any point within the tighter radius, particularly on point clouds with lower spatial density at survey edges. The lookup also keys results by the DataFrame's own index (`{i: np.nan for i in df.index}`) rather than a sequential list position. This guards against silent misalignment if the checkpoint subset has been filtered or re-indexed earlier in the pipeline, ensuring each computed elevation is always matched back to the correct original row rather than relying on row order being preserved by coincidence.
+**Crucial Decision: Search Radius and Index Safety:** A search radius of 0.5m was used after testing showed some genuinely correct checkpoints failing to match any point within the tighter radius, particularly on point clouds with lower spatial density at survey edges. The lookup also keys results by the DataFrame's own index (`{i: np.nan for i in df.index}`) rather than a sequential list position. This guards against silent misalignment if the checkpoint subset has been filtered or re-indexed earlier in the pipeline, ensuring each computed elevation is always matched back to the correct original row rather than relying on row order being preserved by coincidence.
 
 ### Horizontal Accuracy (X, Y): Automated Target Detection
 
 **Logic:** For orthomosaics, the true coordinate of each checkpoint can be compared against where that physical target *actually appears* in the processed image. This requires automatically locating the target within a small search window around the checkpoint's surveyed coordinate.
 
-**Crucial Decision — Dynamic Search Window Sizing:** The search window must be sized to the user's actual physical target, not a fixed arbitrary value. A window significantly larger than the target risks including unrelated high-contrast features (gravel, vegetation, shadows) in the detection calculation, pulling the result away from the true target location. The user is asked for their target's physical size, and the search radius is derived from it directly:
+**Crucial Decision: Dynamic Search Window Sizing:** The search window must be sized to the user's actual physical target, not a fixed arbitrary value. A window significantly larger than the target risks including unrelated high-contrast features (gravel, vegetation, shadows) in the detection calculation, pulling the result away from the true target location. The user is asked for their target's physical size, and the search radius is derived from it directly:
 
 ```
 search_radius = (physical_target_size / 2) + placement_tolerance_margin
@@ -303,7 +303,7 @@ For painted or marker-style targets (dots, crosses, solid shapes), Otsu threshol
 
 ### Per-Point Diagnostic Logging
 
-**Logic:** An aggregate "Detected Targets: 2/3" result tells the user *that* a point failed, but not *why*. Without a specific reason, diagnosing a failed checkpoint means manually re-deriving the search window, re-checking the orthomosaic bounds, and re-inspecting the image by hand — exactly the slow, manual process this software exists to avoid.
+**Logic:** An aggregate "Detected Targets: 2/3" result tells the user *that* a point failed, but not *why*. Without a specific reason, diagnosing a failed checkpoint means manually re-deriving the search window, re-checking the orthomosaic bounds, and re-inspecting the image by hand. That is exactly the slow, manual process this software exists to avoid.
 
 **Crucial Decision:** Each failure mode in the detection pipeline is checked and reported individually, rather than allowing a single generic `except: continue` to silently absorb every possible cause:
 
@@ -331,7 +331,7 @@ DEFINE diagnose_detection_failure(checkpoint, search_window):
         REPORT the reason and the search radius for that point.
 ```
 
-This converts an opaque statistical shortfall into an actionable, point-by-point diagnostic trail — directly informed by real-world testing where checkpoints near the edge of a flight corridor's overlap zone produced detection failures that an aggregate RMSE figure alone would not explain.
+This converts an opaque statistical shortfall into an actionable, point-by-point diagnostic trail, directly informed by real-world testing where checkpoints near the edge of a flight corridor's overlap zone produced detection failures that an aggregate RMSE figure alone would not explain.
 
 ### QA-Only Mode
 
@@ -390,7 +390,7 @@ For the horizontal engine, `deltas` is the array of `Img_E - True_E` (or `Img_N 
 RMSE_R = sqrt( RMSE_X² + RMSE_Y² )
 ```
 
-This is the Pythagorean combination of the two independent axis errors — it answers "how far off, in a straight line on the ground, is the average checkpoint" rather than reporting X and Y error separately.
+This is the Pythagorean combination of the two independent axis errors. It answers "how far off, in a straight line on the ground, is the average checkpoint" rather than reporting X and Y error separately.
 
 **Spherical RMSE (combining horizontal and vertical into a single 3D figure, used in the combined report):**
 

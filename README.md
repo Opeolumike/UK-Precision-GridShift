@@ -102,7 +102,7 @@ UK_Precision_Gridshift_EXE/
     └── uk_os_osgm15_gb.tif
 ```
 
-Place your input files — your orthomosaic/DSM/DTM `.tif`, your LAS folder, and your Ground Control Points CSV — into this same `UK_Precision_Gridshift_EXE` folder, alongside the `.exe` and `Transformation_Grids`. Then double-click `UK_Precision_GridShift.exe` and follow the prompts. The file picker dialogs will default to this folder, making your input files easy to find.
+Place your input files (your orthomosaic/DSM/DTM `.tif`, your LAS folder, and your Ground Control Points CSV) into this same `UK_Precision_Gridshift_EXE` folder, alongside the `.exe` and `Transformation_Grids`. Then double-click `UK_Precision_GridShift.exe` and follow the prompts. The file picker dialogs will default to this folder, making your input files easy to find.
 
 #### CLI Mode (With Arguments)
 
@@ -152,9 +152,9 @@ python gridshift_cli.py --type dem --input "DSM.tif" --output "DSM_BNG_ODN.tif" 
 > ⚠️ **Important:** `--ortho-reference` must point to your RGB orthomosaic **after** it has already been reprojected to BNG by this software (i.e. the output of a previous `--type ortho` run), not the original WGS84 UTM Zone 30N orthomosaic straight from your photogrammetry software. This applies whether your orthomosaic came from a standalone photogrammetry drone or from the RGB camera bundled with an integrated LiDAR sensor payload. The QA engine compares checkpoint coordinates (in BNG) against pixel locations in the orthomosaic, so the orthomosaic must already be in BNG for that comparison to be meaningful. If you haven't reprojected your RGB orthomosaic yet, do that first (RGB Orthomosaic type, in either CLI or GUI mode), then use that output as your reference.
 
 You'll be guided through:
-1. **Column mapping** — telling the software which columns in your CSV correspond to Point ID, Easting, Northing, Elevation, and Point Type.
-2. **Checkpoint identification** — selecting the exact value (e.g. `CP`) that marks a row as an independent checkpoint, so accuracy is assessed only against points that did not influence the model.
-3. **Target type and size** — for horizontal QA, specifying whether you used checkerboard or painted/marker targets, and their physical size, so the software can automatically locate them in the orthomosaic.
+1. **Column mapping:** Telling the software which columns in your CSV correspond to Point ID, Easting, Northing, Elevation, and Point Type.
+2. **Checkpoint identification:** Selecting the exact value (e.g. `CP`) that marks a row as an independent checkpoint, so accuracy is assessed only against points that did not influence the model.
+3. **Target type and size:** For horizontal QA, specifying whether you used checkerboard or painted/marker targets, and their physical size, so the software can automatically locate them in the orthomosaic.
 
 The software will then generate a PDF report (`<filename>_QA_Report_<TYPE>.pdf`) summarising RMSE values, following ASPRS Positional Accuracy Standards Edition 2 RMSE-based evaluation methodology.
 
