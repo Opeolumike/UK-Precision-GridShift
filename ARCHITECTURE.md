@@ -48,9 +48,9 @@ DEFINE lock_output_resolution(input_raster):
 
 This ensures the reprojected output preserves the same pixel size as the original capture, rather than an auto-derived approximation.
 
-**Crucial Decision: Explicit OSTN15 Operation for the Warp and the Output Grid:** Rasterio warps into the destination file using that file's own CRS (EPSG:27700). A `+nadgrids` definition passed as `dst_crs` is therefore not applied. With plain EPSG:27700, PROJ chooses its own operation: OSTN15 only when PROJ has its own copy of the grid installed, otherwise the 7-parameter Helmert. At the Exeter test site the Helmert placed the orthomosaic 1.11 m west and 1.16 m south of OSTN15, and the grid check in Part 1 did not catch it, because the warp never opened the grid file.
+**Crucial Decision: Explicit OSTN15 Operation for the Warp and the Output Grid:** Rasterio warps into the destination file using that file's own CRS (EPSG:27700), so a `+nadgrids` definition passed as `dst_crs` is not applied. Left to itself, PROJ chooses its own operation for EPSG:27700: OSTN15 only when its own copy of the grid is installed, otherwise the 7-parameter Helmert, with metre-level error. The grid check in Part 1 cannot detect that fallback, because such a warp never opens the grid file.
 
-The fix is to hand GDAL the explicit OSTN15 pipeline as `COORDINATE_OPERATION`, both when computing the output grid and when warping. It is the same horizontal pipeline the point cloud function uses (Part 4), so rasters and point clouds always share one transformation. The output grid origin is then snapped to whole multiples of the pixel size, so the same input always produces the same pixel grid, whichever PROJ grids are installed.
+To guarantee OSTN15, the explicit pipeline is handed to GDAL as `COORDINATE_OPERATION`, both when computing the output grid and when warping. It is the same horizontal pipeline the point cloud function uses (Part 4), so rasters and point clouds always share one transformation. The output grid origin is then snapped to whole multiples of the pixel size, so the same input always produces the same pixel grid, whichever PROJ grids are installed.
 
 ```
 DEFINE bng_output_grid(input_raster, ostn15_operation):
@@ -261,9 +261,9 @@ search_radius = (physical_target_size / 2) + placement_tolerance_margin
 
 The search window is a square that extends the full search radius on every side of the surveyed point, so a target up to 0.5 m from where it was surveyed is still inside it. A target further out than that is reported as not found rather than measured.
 
-**Crucial Decision: Checkerboard Centre from the Board Outline, Not a Centroid of Corners:** An earlier version averaged every pixel scoring above 10% of the strongest Harris corner response in the window. That centroid includes ground texture and only part of the board's outline, so it is pulled towards the middle of the search window, which is the surveyed point itself. In a synthetic test with the boards placed 1.61 m from their surveyed positions, it reported an RMSE of 0.05 m. It also moved by up to 0.27 m when the same orthomosaic was resampled onto a grid offset by less than a pixel.
+**Crucial Decision: Checkerboard Centre from the Board Outline, Not a Centroid of Corners:** Averaging every pixel with a strong Harris corner response does not locate a board reliably. That centroid includes ground texture and only part of the board's outline, so it is pulled towards the middle of the search window, which is the surveyed point itself. It can report a small error for a board well away from its surveyed position, and it moves when the same orthomosaic is resampled onto a grid offset by less than a pixel.
 
-Field boards rarely show a clean black and white X. In the Exeter test data, sun glare washed one dark square out to near white, dark squares matched the grass, and the white squares carried printed letters. What stays clear is that the white squares are the brightest thing on the ground, so the board is found from its outline and then refined to the point where its squares meet:
+Field boards rarely show a clean black and white X. Sun glare can wash a dark square out to near white, dark squares can match the grass, and white squares often carry printed letters. What stays clear is that the white squares are the brightest thing on the ground, so the board is found from its outline and then refined to the point where its squares meet:
 
 ```
 DEFINE locate_checkerboard_centre(image_window, target_size):
@@ -297,9 +297,9 @@ DEFINE locate_checkerboard_centre(image_window, target_size):
             move from the pixel centre to the raster's corner convention.
 ```
 
-Because the board is found from its own outline, the result does not depend on where the surveyed point sits in the window. In a synthetic test at 6.2 mm pixels, this located 0.5 m boards to within 2 to 4 mm on two grids offset by a fraction of a pixel, and reported every board as not found when the orthomosaic was 1.61 m out. On the Exeter test boards, the result did not change whether the board size was entered as 0.45 m or 0.5 m. Every threshold is a fraction of the board size entered, so other sizes work the same way: 0.3 m and 1 m boards were located to within 2 to 5 mm. A size entered well away from the real board (more than about a fifth out) is reported as not found, with a prompt to check the size, rather than measured.
+Because the board is found from its own outline, the result does not depend on where the surveyed point sits in the window. Every threshold is a fraction of the board size entered, so the method works the same way for any board size. A size entered well away from the real board (more than about a fifth out) is reported as not found, with a prompt to check the size, rather than measured.
 
-For painted or marker-style targets (dots, crosses, solid shapes), Otsu thresholding isolates the target from the background by contrast, and the centroid of its largest contour is used directly via image moments. This suits these targets, since they typically have no internal corner structure for Harris detection to exploit. The centroid is kept to sub-pixel precision rather than truncated to a whole pixel.
+For painted or marker-style targets (dots, crosses, solid shapes), Otsu thresholding isolates the target from the background by contrast, and the centroid of its largest contour is used directly via image moments. This suits these targets, since they typically have no internal corner structure for Harris detection to exploit. The centroid is used at sub-pixel precision.
 
 ### Per-Point Diagnostic Logging
 
