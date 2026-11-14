@@ -51,7 +51,7 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Software version, printed in every QA report
-GRIDSHIFT_VERSION = "1.2.1"
+GRIDSHIFT_VERSION = "1.2.2"
 
 # ==============================================================================
 # 0. SHARED OSTN15 PLANIMETRIC TRANSFORMATION
@@ -361,25 +361,101 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
             )
 
         print("Applying OSGM15 vertical shift...")
-         # Apply vertical correction tile-by-tile
-        with rasterio.open(output_path, 'r+') as dst:
-            for ji, window in dst.block_windows(1):
-                dest = dst.read(1, window=window)
-                mask = dest != -9999
-
-                if np.any(mask):
-                    win_transform = rasterio.windows.transform(window, transform)
-                    rows, cols = np.indices(dest.shape)
-                    xs = win_transform.c + cols * win_transform.a + rows * win_transform.b
-                    ys = win_transform.f + cols * win_transform.d + rows * win_transform.e
-
-                    _, _, z_odn = bng_z_shifter.transform(xs[mask], ys[mask], dest[mask])
-
-                    dest[mask] = z_odn
-                    dst.write(dest, 1, window=window)
-
-            dst.update_tags(VERTICAL_DATUM="ODN", GEOID_MODEL="OSGM15")
+        apply_odn_heights(output_path, transform, bng_z_shifter)
     print(f"✅ Success: {output_path}")
+
+
+# Spacing in metres of the nodes where the ellipsoid to ODN correction is
+# calculated exactly. The correction changes by only millimetres across a
+# whole site, so a height interpolated from nodes this close differs from a
+# per-pixel calculation by about 0.001 mm.
+HEIGHT_NODE_SPACING = 1.0
+
+# Pixels read, corrected and written in one pass of the height step
+HEIGHT_CHUNK_PIXELS = 16_000_000
+
+
+def odn_correction_nodes(z_shifter, x_nodes, y_nodes):
+    """Return the exact ellipsoid to ODN correction at every node of a grid.
+
+    The height pipeline only adds the OSGM15 value to the height it is given,
+    so the correction does not depend on the height itself. Passing a height
+    of zero therefore returns the correction alone.
+    """
+    grid_x, grid_y = np.meshgrid(x_nodes, y_nodes)
+    _, _, correction = z_shifter.transform(grid_x.ravel(), grid_y.ravel(), np.zeros(grid_x.size))
+    return np.asarray(correction).reshape(grid_x.shape)
+
+
+def node_positions(values, spacing):
+    """Return node coordinates every `spacing` metres that span `values`."""
+    first = int(np.floor(values.min() / spacing))
+    last = max(int(np.ceil(values.max() / spacing)), first + 1)
+    return np.arange(first, last + 1) * spacing
+
+
+def apply_odn_heights(output_path, transform, z_shifter):
+    """Convert every height in a north-up BNG raster from ellipsoidal to ODN.
+
+    The correction is calculated exactly with the full PROJ height pipeline
+    at nodes every HEIGHT_NODE_SPACING metres, then interpolated bilinearly
+    for each pixel and added to its height. A survey raster can hold hundreds
+    of millions of pixels, and running the pipeline for each one takes many
+    minutes, while the correction varies so smoothly that the nodes give the
+    same heights to within about 0.001 mm. Each pixel is corrected at the
+    same point as before, its top left corner. Any pixel whose interpolated
+    correction is not a finite number falls back to the exact per-pixel
+    calculation.
+    """
+    with rasterio.open(output_path, 'r+') as dst:
+        width, height = dst.width, dst.height
+        spacing = HEIGHT_NODE_SPACING
+        rows_per_chunk = max(1, HEIGHT_CHUNK_PIXELS // width)
+
+        # Easting of every pixel column and the node columns that span them
+        xs = transform.c + np.arange(width) * transform.a
+        x_nodes = node_positions(xs, spacing)
+
+        reported = 0
+        for row_start in range(0, height, rows_per_chunk):
+            n_rows = min(rows_per_chunk, height - row_start)
+            window = Window(0, row_start, width, n_rows)
+            dest = dst.read(1, window=window)
+            valid = dest != -9999
+
+            if np.any(valid):
+                # Northing of every pixel row in this chunk and the node rows that span them
+                ys = transform.f + (row_start + np.arange(n_rows)) * transform.e
+                y_nodes = node_positions(ys, spacing)
+                nodes = odn_correction_nodes(z_shifter, x_nodes, y_nodes)
+
+                # Bilinear interpolation, first along each node row, then between node rows
+                along_x = np.array([np.interp(xs, x_nodes, node_row) for node_row in nodes])
+                position = (ys - y_nodes[0]) / spacing
+                lower = np.clip(np.floor(position).astype(int), 0, len(y_nodes) - 2)
+                weight = (position - lower)[:, None]
+                correction = (1 - weight) * along_x[lower] + weight * along_x[lower + 1]
+
+                # Add the interpolated correction wherever it is a finite number
+                usable = valid & np.isfinite(correction)
+                dest[usable] = dest[usable] + correction[usable]
+
+                # Exact per-pixel calculation for any pixel the nodes cannot serve
+                fallback = valid & ~usable
+                if np.any(fallback):
+                    rows, cols = np.nonzero(fallback)
+                    _, _, z_odn = z_shifter.transform(xs[cols], ys[rows], dest[fallback])
+                    dest[fallback] = z_odn
+
+                dst.write(dest, 1, window=window)
+
+            # Report progress in steps of 10 percent so long runs never look frozen
+            done = int(100 * (row_start + n_rows) / height) // 10 * 10
+            if done > reported:
+                reported = done
+                print(f"    Heights: {done}% done")
+
+        dst.update_tags(VERTICAL_DATUM="ODN", GEOID_MODEL="OSGM15")
 
 # ==============================================================================
 # 4. POINT CLOUDS (LAS)

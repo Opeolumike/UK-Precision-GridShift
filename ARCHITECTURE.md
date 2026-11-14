@@ -160,20 +160,27 @@ DEFINE reproject_dem_odn(input, output, grids):
 
     STEP 4: Vertical Shift (The Z Shift)
         OPEN the newly horizontally-shifted BNG raster
-        READ data block-by-block (Prevents RAM overload on massive drone maps)
+        READ it in chunks of rows (Prevents RAM overload on massive drone maps)
 
-        FOR EACH valid pixel:
-            GET its current BNG X and Y coordinate.
-            PASS X, Y, and original GPS Z into the Z-Shift PROJ Pipeline.
-
-            EXTRACT only the new Z value (z_odn).
+        FOR EACH chunk:
+            BUILD nodes every 1 m in BNG that span the chunk.
+            PASS each node's X and Y, with a height of zero, into the Z-Shift PROJ Pipeline.
+            EXTRACT only the new Z value, which is the correction -N at that node.
             DISCARD the pipeline's output X and Y (Prevents the double-shift).
 
-            OVERWRITE the pixel's old Z with z_odn.
+            FOR EACH valid pixel:
+                INTERPOLATE the correction bilinearly from the four nodes around it.
+                ADD it to the pixel's ellipsoidal height to give the ODN height.
+                IF the interpolated correction is not a finite number,
+                    PASS the pixel through the Z-Shift PROJ Pipeline directly.
+
+            PRINT progress in steps of 10 percent.
 
     STEP 5: UPDATE metadata tags to declare VERTICAL_DATUM="ODN".
     STEP 6: SAVE and CLOSE.
 ```
+
+**Crucial Decision: Exact Correction at 1 m Nodes:** The Z-Shift pipeline only adds the OSGM15 value to the height it is given, so the correction depends on position alone, never on the height. It is calculated exactly at nodes 1 m apart and interpolated for each pixel. OSGM15 is itself a grid of nodes about 1 km apart that PROJ interpolates bilinearly, so the correction changes by only millimetres across a whole site, and a height built from the 1 m nodes matches a per-pixel calculation to within the rounding of the 32-bit numbers the DSM is stored in, a few hundredths of a millimetre at most. Running the full pipeline for every pixel instead would mean hundreds of millions of calculations for a typical survey DSM, all giving the same answer. Each pixel is corrected at the same point as the pipeline would use, its top left corner.
 
 ---
 
