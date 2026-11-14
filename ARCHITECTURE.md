@@ -163,7 +163,7 @@ DEFINE reproject_dem_odn(input, output, grids):
 
 ## Part 4: 3D Vector Processing (LAS Point Clouds)
 
-**Logic:** Unlike rasters, point clouds are discrete 3D vectors. We do not need Rasterio to warp a bounding box. We can pass the exact X, Y, and Z of every single laser return through a single, continuous PROJ 3D pipeline. We utilise NumPy array masking to process millions of coordinates efficiently within the CPU, rather than utilising highly inefficient for loops.
+**Logic:** Unlike rasters, point clouds are discrete 3D vectors. We do not need Rasterio to warp a bounding box. We can pass the exact X, Y, and Z of every single point through a single, continuous PROJ 3D pipeline. We utilise NumPy array masking to process millions of coordinates efficiently within the CPU, rather than utilising highly inefficient for loops.
 
 ```
 DEFINE reproject_point_cloud(input_folder, output_folder, grids):

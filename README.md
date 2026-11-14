@@ -5,7 +5,7 @@ A CLI and GUI geospatial processing software for reprojecting RGB Orthomosaics, 
 
 ### Features
 * **High-Precision Geodetic Transformation:** Applies OSTN15 horizontal and OSGM15 vertical grid transformations.  
-* **Broad Data Compatibility:** Processes UAV photogrammetry and LiDAR-derived datasets, including RGB/Multispectral Orthomosaics (.tif), DSMs/DTMs (.tif), and LAS Point Clouds (.las).  
+* **Broad Data Compatibility:** Processes UAV photogrammetry datasets, including RGB/Multispectral Orthomosaics (.tif), DSMs/DTMs (.tif), and LAS Point Clouds (.las).  
 * **Hybrid Deployment:** Features a traditional CLI for reproducible scripting, alongside an interactive GUI mode for simple, standalone Windows desktop use.  
 * **Automated QA Reporting:** Evaluates positional accuracy using independent checkpoints, and reports results following the [American Society for Photogrammetry and Remote Sensing (ASPRS) Edition 2 (v2.0) RMSE methodology](https://publicdocuments.asprs.org/PositionalAccuracyStd-Ed2-V2)  
 * **Automated Report Generation:** Produces structured PDF reports for horizontal and vertical accuracy assessment.  
@@ -13,11 +13,11 @@ A CLI and GUI geospatial processing software for reprojecting RGB Orthomosaics, 
 
 ### Use Case Example
 
-Construction companies increasingly use UAV photogrammetry and LiDAR-derived datasets to create detailed 3D representations of sites. However, these datasets are not always correctly aligned with national coordinate reference systems without an appropriate geodetic transformation.
+Construction companies increasingly use UAV photogrammetry to create detailed 3D representations of sites. However, these datasets are not always correctly aligned with national coordinate reference systems without an appropriate geodetic transformation.
 
 Small positional errors in digital terrain models and mapping products can affect downstream engineering workflows, including earthworks calculations, design decisions, and site measurements. Standard mathematical transformations (Helmert) can return metre-level differences in the UK.
 
-UK Precision GridShift is designed for UAV and LiDAR-derived geospatial datasets used in construction, civil engineering, and survey workflows. It enables transformation into the British National Grid with associated vertical datum correction (ODN), supporting applications such as terrain analysis, volumetrics, GIS integration, and engineering data preparation.
+UK Precision GridShift is designed for UAV photogrammetry datasets used in construction, civil engineering, and survey workflows. It enables transformation into the British National Grid with associated vertical datum correction (ODN), supporting applications such as terrain analysis, volumetrics, GIS integration, and engineering data preparation.
 
 > ⚠️ **Please note:** This software is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
 
@@ -149,7 +149,7 @@ python gridshift_cli.py --type multi --input "Multispectral_Ortho.tif" --output 
 python gridshift_cli.py --type dem --input "DSM.tif" --output "DSM_BNG_ODN.tif" --grids "Transformation_Grids" --qa-file "Survey_Control.csv" --ortho-reference "RGB_Ortho_BNG.tif"
 ```
 
-> ⚠️ **Important:** `--ortho-reference` must point to your RGB orthomosaic **after** it has already been reprojected to BNG by this software (i.e. the output of a previous `--type ortho` run), not the original WGS84 UTM Zone 30N orthomosaic straight from your photogrammetry software. This applies whether your orthomosaic came from a standalone photogrammetry drone or from the RGB camera bundled with an integrated LiDAR sensor payload. The QA engine compares checkpoint coordinates (in BNG) against pixel locations in the orthomosaic, so the orthomosaic must already be in BNG for that comparison to be meaningful. If you haven't reprojected your RGB orthomosaic yet, do that first (RGB Orthomosaic type, in either CLI or GUI mode), then use that output as your reference.
+> ⚠️ **Important:** `--ortho-reference` must point to your RGB orthomosaic **after** it has already been reprojected to BNG by this software (i.e. the output of a previous `--type ortho` run), not the original WGS84 UTM Zone 30N orthomosaic straight from your photogrammetry software. The QA engine compares checkpoint coordinates (in BNG) against pixel locations in the orthomosaic, so the orthomosaic must already be in BNG for that comparison to be meaningful. If you haven't reprojected your RGB orthomosaic yet, do that first (RGB Orthomosaic type, in either CLI or GUI mode), then use that output as your reference.
 
 You'll be guided through:
 1. **Column mapping:** Telling the software which columns in your CSV correspond to Point ID, Easting, Northing, Elevation, and Point Type.

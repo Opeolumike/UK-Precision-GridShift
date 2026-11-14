@@ -2,7 +2,7 @@
 # ==============================================================================
 # UK Precision GridShift CLI
 # Reprojecting RGB Orthomosaics, Multispectral Orthomosaics (photogrammetry), 
-# DSMs, DTMs, and LAS Point Clouds (photogrammetry and LiDAR) through the CLI
+# DSMs, DTMs, and LAS Point Clouds (photogrammetry) through the CLI
 # Transformation: OSTN15 (Horizontal) and OSGM15 (Vertical)
 # From: EPSG:32630 (UTM 30N)
 # To: EPSG:27700 (BNG) + ODN Height
