@@ -27,6 +27,22 @@ START CLI ROUTING
 END
 ```
 
+**Crucial Decision: Path Length Check Before Processing:** On Windows, GDAL, PROJ and laspy cannot open a path longer than 259 characters. Every path the run will read or write is checked first: the inputs, the outputs, both grid files, each output LAS tile, the QA CSV, the reference orthomosaic and the PDF report. If one is too long, the run stops before any processing and names that path, instead of failing part way through a long warp. Other systems have no such limit, so the check runs on Windows only.
+
+**Crucial Decision: Grid Paths Inside a PROJ Pipeline:** A PROJ pipeline is one line of text, split into parameters at spaces. A grid file in a project folder such as `XYZ Project` would therefore be read as two parameters, and the pipeline could not be built. Every grid path is written inside double quotes, which Windows never allows in file names, so any space or other character stays within the one value. Quotes do not protect two characters: `,` separates a list of grid files and `#` starts a comment. When a grid path holds either, the grid is copied once to a temporary folder for that run and the copy is used. The content is the same file, so the transformation is identical. The temporary folder is removed when the run ends.
+
+```
+DEFINE proj_grid_arg(grid_path):
+    IF grid_path contains ',' or '#':
+        COPY the grid once to a temporary folder for this run
+        USE the copy instead
+    RETURN the path inside double quotes
+```
+
+Folders of LAS tiles are listed directly instead of searched with a pattern, so a folder name with `[ ]` causes no problem, and tiles ending `.las` or `.LAS` are both found on every system.
+
+**Crucial Decision: Output Name Suffixes:** Suggested output names show what was transformed. Orthomosaics are shifted horizontally only, so they take `_BNG`. Elevation models and point clouds also have their heights moved to ODN, so they take `_BNG_ODN`. The suffix goes before the extension, whatever its letter case.
+
 ---
 
 ## Part 2: 2D Planimetric Shifts (RGB & Multispectral)

@@ -125,7 +125,7 @@ python gridshift_cli.py --type dem --input "DSM_DTM.tif" --output "DSM_DTM_BNG_O
 
 **Point Clouds (LAS Directory)**
 ```
-python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG" --grids "Transformation_Grids"
+python gridshift_cli.py --type las --input "Point_Cloud_Folder" --output "Point_Cloud_BNG_ODN" --grids "Transformation_Grids"
 ```
 > **Note:** You can change `input ""` and `output ""` to whatever your input file/folder is named and your preferred output file/folder name.
 

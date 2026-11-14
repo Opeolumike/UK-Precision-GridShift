@@ -25,8 +25,10 @@ if getattr(sys, 'frozen', False):
     os.environ["PROJ_LIB"] = os.path.join(bundle_dir, 'proj')
     os.environ["GDAL_DATA"] = os.path.join(bundle_dir, 'gdal_data')
 
-import glob
 import argparse
+import shutil
+import tempfile
+import atexit
 import numpy as np
 import rasterio
 from rasterio.warp import calculate_default_transform, reproject, Resampling, aligned_target
@@ -49,11 +51,81 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # Software version, printed in every QA report
-GRIDSHIFT_VERSION = "1.2.0"
+GRIDSHIFT_VERSION = "1.2.1"
 
 # ==============================================================================
 # 0. SHARED OSTN15 PLANIMETRIC TRANSFORMATION
 # ==============================================================================
+# Characters PROJ cannot read inside a grid path, even in double quotes:
+# "," separates a list of grid files and "#" starts a comment
+PROJ_UNSAFE_CHARS = ("#", ",")
+
+# Temporary folder for copies of the grids, made only when a grid path holds
+# one of the characters above
+_safe_grid_dir = None
+
+
+def proj_grid_arg(grid_path):
+    """Return a grid path written so PROJ reads it as one pipeline value.
+
+    PROJ splits a pipeline into parameters at spaces, so a grid inside a
+    project folder such as "XYZ Project" breaks the pipeline unless its path
+    sits in double quotes. Windows does not allow double quotes in file names,
+    so quoting is always safe. Quotes do not protect "," or "#". When the path
+    holds either, the grid is copied once to a temporary folder for this run
+    and the copy is used. The grid content is identical, so the results are
+    the same.
+    """
+    global _safe_grid_dir
+
+    if any(char in grid_path for char in PROJ_UNSAFE_CHARS):
+        # Make the temporary folder on first use and remove it when the run ends
+        if _safe_grid_dir is None:
+            _safe_grid_dir = tempfile.mkdtemp(prefix="gridshift_grids_")
+            atexit.register(shutil.rmtree, _safe_grid_dir, ignore_errors=True)
+
+        # The temporary folder is the fallback, so it must itself be readable
+        if any(char in _safe_grid_dir for char in PROJ_UNSAFE_CHARS):
+            raise RuntimeError(
+                "The grid path and the Windows temporary folder both contain '#' or ','.\n"
+                f"   Grid: {grid_path}\n"
+                "   Move the project to a folder without '#' or ',' and run again."
+            )
+
+        # Copy the grid once, then reuse the copy for every later pipeline
+        safe_path = os.path.join(_safe_grid_dir, os.path.basename(grid_path))
+        if not os.path.exists(safe_path):
+            shutil.copyfile(grid_path, safe_path)
+        grid_path = safe_path
+
+    # Double quotes keep spaces and other characters inside one PROJ value
+    return f'"{grid_path}"'
+
+
+def find_las_files(folder):
+    """Return the LAS tiles in a folder, sorted by name.
+
+    The folder is listed directly instead of searched with a pattern, so a
+    folder name holding "[ ]" causes no problem, and tiles ending ".las" or
+    ".LAS" are both found on every system, including Linux ones such as
+    Google Colab where pattern searches are case sensitive.
+    """
+    return sorted(
+        os.path.join(folder, name) for name in os.listdir(folder)
+        if name.lower().endswith(".las") and os.path.isfile(os.path.join(folder, name))
+    )
+
+
+def output_name(file_name, suffix):
+    """Add a suffix before the file extension, whatever its letter case.
+
+    "_BNG" marks a horizontal shift only (orthomosaics). "_BNG_ODN" marks a
+    horizontal shift plus ODN heights (DSM, DTM and point clouds).
+    """
+    base, extension = os.path.splitext(file_name)
+    return f"{base}{suffix}{extension}"
+
+
 def bng_2d_operation(ostn15_path):
     """Return the explicit OSTN15 pipeline from WGS84 UTM 30N to BNG.
 
@@ -69,7 +141,7 @@ def bng_2d_operation(ostn15_path):
         # UTM 30N easting and northing back to ETRS89 (WGS84) longitude and latitude
         "+step +inv +proj=utm +zone=30 +ellps=WGS84 "
         # OSTN15 shift from ETRS89 to OSGB36 longitude and latitude
-        f"+step +proj=hgridshift +grids={ostn15_path} "
+        f"+step +proj=hgridshift +grids={proj_grid_arg(ostn15_path)} "
         # OSGB36 longitude and latitude to British National Grid on the Airy ellipsoid
         "+step +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 "
         "+x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
@@ -253,8 +325,8 @@ def reproject_dem_odn(input_path, output_path, grid_folder):
     z_shift_pipeline = (
         f"+proj=pipeline "
         f"+step +inv +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy "
-        f"+step +inv +proj=hgridshift +grids={ostn15_path} "
-        f"+step +inv +proj=vgridshift +grids={osgm15_path} +multiplier=1"
+        f"+step +inv +proj=hgridshift +grids={proj_grid_arg(ostn15_path)} "
+        f"+step +inv +proj=vgridshift +grids={proj_grid_arg(osgm15_path)} +multiplier=1"
     )
     bng_z_shifter = Transformer.from_pipeline(z_shift_pipeline)
     
@@ -347,8 +419,8 @@ def reproject_point_cloud_bng_odn(input_folder, output_folder, grid_folder):
     z_shift_pipeline = (
         "+proj=pipeline "
         "+step +inv +proj=utm +zone=30 +ellps=WGS84 "
-        f"+step +inv +proj=vgridshift +grids={osgm15_path} +multiplier=1 "
-        f"+step +proj=hgridshift +grids={ostn15_path} "
+        f"+step +inv +proj=vgridshift +grids={proj_grid_arg(osgm15_path)} +multiplier=1 "
+        f"+step +proj=hgridshift +grids={proj_grid_arg(ostn15_path)} "
         "+step +proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 "
         "+x_0=400000 +y_0=-100000 +ellps=airy +units=m +no_defs"
     )
@@ -357,7 +429,7 @@ def reproject_point_cloud_bng_odn(input_folder, output_folder, grid_folder):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
-    las_files = sorted(glob.glob(os.path.join(input_folder, "*.las")))
+    las_files = find_las_files(input_folder)
     total_files = len(las_files)
     print(f"Found {total_files} .las files. Starting transformation...")
 
@@ -396,7 +468,7 @@ def reproject_point_cloud_bng_odn(input_folder, output_folder, grid_folder):
                             new_las[dim] = las[dim][valid_mask]
 
                     # Save the file
-                    out_name = fname.replace(".las", "_BNG_ODN.las")
+                    out_name = output_name(fname, "_BNG_ODN")
                     new_las.write(os.path.join(output_folder, out_name))
 
             if index % 50 == 0 or index == total_files:
@@ -623,7 +695,7 @@ def generate_pdf_report(qa_df, stats, report_type, args, total_pts, cp_count, gc
 # Logic to sample elevation from Point Clouds using KD-Tree for spatial accuracy
 def sample_las_elevation(las_dir, df, args, search_radius=0.5): # Increased radius to 0.5m
     las_elevations = {i: np.nan for i in df.index} 
-    las_files = glob.glob(os.path.join(las_dir, "*.las")) if os.path.isdir(las_dir) else [las_dir]
+    las_files = find_las_files(las_dir) if os.path.isdir(las_dir) else [las_dir]
     
     print(f"    -> Indexing Point Cloud(s) for QA (Checking {len(las_files)} files...)")
     for las_file in las_files:
@@ -951,6 +1023,55 @@ def save_file_dialog(title, default_ext, initialdir, initialfile):
     return path
 
 # ==============================================================================
+# PATH LENGTH CHECK
+# ==============================================================================
+# Longest full path Windows programs can open without long path support. The
+# limit counts a hidden end marker, so a path can hold 259 characters.
+WINDOWS_MAX_PATH = 260
+
+
+def check_path_lengths(args, qa_path):
+    """Stop before processing if any path the run uses is too long for Windows.
+
+    GDAL, PROJ and laspy cannot open paths longer than the Windows limit. The
+    check covers every file the run reads or writes, including each output LAS
+    tile and the PDF report, so the user is told at the start instead of the
+    run failing part way. Other systems, such as Google Colab, have no such
+    limit, so the check runs on Windows only.
+    """
+    if os.name != "nt":
+        return
+
+    # Inputs, outputs and both grid files
+    paths = [args.input, args.output,
+             os.path.join(args.grids, "ostn15_etrs_to_osgb.gsb"),
+             os.path.join(args.grids, "uk_os_osgm15_gb.tif")]
+
+    # Each LAS tile and the name its reprojected copy will take
+    if args.type == "las" and os.path.isdir(args.input):
+        for las_path in find_las_files(args.input):
+            paths.append(las_path)
+            paths.append(os.path.join(args.output, output_name(os.path.basename(las_path), "_BNG_ODN")))
+
+    # QA inputs and the longest report name the run can write
+    if qa_path:
+        paths.append(qa_path)
+        base_name = os.path.splitext(os.path.basename(args.input))[0]
+        paths.append(f"{base_name}_QA_Report_HORIZONTAL.pdf")
+    if getattr(args, "ortho_reference", None):
+        paths.append(args.ortho_reference)
+
+    # Report the first path that is too long and stop
+    for path in paths:
+        full_path = os.path.abspath(path)
+        if len(full_path) >= WINDOWS_MAX_PATH:
+            print(f"\n❌ PATH TOO LONG: {len(full_path)} characters, Windows allows {WINDOWS_MAX_PATH - 1}.")
+            print(full_path)
+            print("Use a shorter folder path and run again.")
+            if len(sys.argv) == 1: input("Press Enter to exit...")
+            sys.exit(1)
+
+# ==============================================================================
 # COMMAND LINE INTERFACE (CLI) ROUTING
 # ==============================================================================
 if __name__ == "__main__":
@@ -1032,7 +1153,10 @@ if __name__ == "__main__":
                 
             # Output File
             print("\nWaiting for Output File selection...")
-            default_out_name = os.path.basename(args.input).replace(out_ext, f"_BNG_ODN{out_ext}")
+            # Orthomosaics are shifted horizontally only, so they take "_BNG".
+            # Elevation models also have their heights moved to ODN.
+            out_suffix = "_BNG_ODN" if args.type == 'dem' else "_BNG"
+            default_out_name = output_name(os.path.basename(args.input), out_suffix)
             args.output = save_file_dialog("Save Output File As", out_ext, os.path.dirname(args.input), default_out_name)
             if not args.output:
                 print("❌ Operation cancelled.")
@@ -1149,6 +1273,9 @@ if __name__ == "__main__":
                     qa_path = input("Enter the full path to the QA CSV file: ").strip()
             else:
                 print("Invalid choice. Please enter 1, 2, or 3.")
+
+    # Stop now if any path is too long for Windows, before any processing
+    check_path_lengths(args, qa_path)
 
     # Execute Core Reprojection
     if getattr(args, 'qa_only', False):
