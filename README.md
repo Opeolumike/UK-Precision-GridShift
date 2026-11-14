@@ -17,7 +17,7 @@ Construction companies increasingly use UAV photogrammetry to create detailed 3D
 
 Small positional errors in digital terrain models and mapping products can affect downstream engineering workflows, including earthworks calculations, design decisions, and site measurements. Standard mathematical transformations (Helmert) can return metre-level differences in the UK.
 
-UK Precision GridShift is designed for UAV photogrammetry datasets used in construction, civil engineering, and survey workflows. It enables transformation into the British National Grid with associated vertical datum correction (ODN), supporting applications such as terrain analysis, volumetrics, GIS integration, and engineering data preparation.
+UK Precision GridShift is designed for UAV photogrammetry datasets used in construction and civil engineering projects. It enables transformation into the British National Grid with associated vertical datum correction (ODN), supporting applications such as terrain analysis, volumetrics, GIS integration, and engineering data preparation.
 
 > ⚠️ **Please note:** This software is designed specifically for England, Scotland, and Wales. It is not suitable for Northern Ireland, which uses a different datum and geoid model.
 
