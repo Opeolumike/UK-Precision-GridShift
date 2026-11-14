@@ -27,7 +27,7 @@ Depending on your environment, please follow the specific setup instructions bel
 
 #### Option A: Local Machine (Conda Recommended)
 
-> **⚠️ Hardware Note:** Applying OSTN15/OSGM15 shifts to high-resolution orthomosaics, DSMs, and Point Clouds is memory-intensive. Ensure your machine has at least 16GB of available RAM. For systems with lower specifications, **Option B: Google Colab** is recommended.
+> **⚠️ Hardware Note:** Applying OSTN15/OSGM15 shifts to high-resolution orthomosaics, DSMs, and Point Clouds is memory-intensive. Ensure your machine has at least 64GB of available RAM.
 
 **1. Create a Conda environment if you do not have one yet**
 
